@@ -15,5 +15,7 @@ This repository is a professional showcase for potential clients, providing:
 - Examples of well-documented and structured solutions.
 - Insights into my approach to solving real-world problems with modern tools and techniques.
 
-Explore the projects to see how cutting-edge technology meets practical implementation. Whether you're interested in data science, machine learning, or software engineering, this repository demonstrates the depth and versatility of my work.
+Explore the projects to see how cutting-edge technology meets practical implementation. Whether you're interested in data science, machine learning, or software engineering, this repository demonstrates the depth and versatility of my work. 
+
+It will continue to be updated with new projects.
 
