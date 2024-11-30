@@ -1,0 +1,439 @@
+{
+    "prediction": [
+        1,
+        1,
+        1,
+        1,
+        1
+    ],
+    "scoring": {
+        "f1_score": 0.7741935483870968
+    },
+    "summarystats": {
+        "summary_statistics": [
+            [
+                5625.923076923077,
+                763.5384615384615,
+                457.46153846153845,
+                0.5
+            ],
+            [
+                425.0,
+                97.5,
+                99.0,
+                0.5
+            ],
+            [
+                19444.774621317832,
+                2016.6093569309696,
+                800.6048328991891,
+                0.5099019513592785
+            ]
+        ]
+    },
+    "diagnostics": {
+        "execution_time": {
+            "data_ingestion_time": 0.3997912179984269,
+            "model_training_time": 0.9754135549992498
+        },
+        "missing_data_percentages": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+        ],
+        "outdated_packages": [
+            {
+                "Current Version": "3.11.7",
+                "Latest Version": "3.11.8",
+                "Package": "aiohttp"
+            },
+            {
+                "Current Version": "4.9.3",
+                "Latest Version": "4.13.2",
+                "Package": "antlr4-python3-runtime"
+            },
+            {
+                "Current Version": "4.6.0",
+                "Latest Version": "4.6.2.post1",
+                "Package": "anyio"
+            },
+            {
+                "Current Version": "21.3.0",
+                "Latest Version": "23.1.0",
+                "Package": "argon2-cffi"
+            },
+            {
+                "Current Version": "2.0.5",
+                "Latest Version": "2.4.1",
+                "Package": "asttokens"
+            },
+            {
+                "Current Version": "12.23.1",
+                "Latest Version": "12.24.0",
+                "Package": "azure-storage-blob"
+            },
+            {
+                "Current Version": "2.11.0",
+                "Latest Version": "2.16.0",
+                "Package": "Babel"
+            },
+            {
+                "Current Version": "4.1.0",
+                "Latest Version": "6.2.0",
+                "Package": "bleach"
+            },
+            {
+                "Current Version": "1.35.36",
+                "Latest Version": "1.35.71",
+                "Package": "boto3"
+            },
+            {
+                "Current Version": "1.35.36",
+                "Latest Version": "1.35.71",
+                "Package": "botocore"
+            },
+            {
+                "Current Version": "1.0.9",
+                "Latest Version": "1.1.0",
+                "Package": "Brotli"
+            },
+            {
+                "Current Version": "3.3.2",
+                "Latest Version": "3.4.0",
+                "Package": "charset-normalizer"
+            },
+            {
+                "Current Version": "0.2.1",
+                "Latest Version": "0.2.2",
+                "Package": "comm"
+            },
+            {
+                "Current Version": "43.0.3",
+                "Latest Version": "44.0.0",
+                "Package": "cryptography"
+            },
+            {
+                "Current Version": "1.6.7",
+                "Latest Version": "1.8.9",
+                "Package": "debugpy"
+            },
+            {
+                "Current Version": "1.2.0",
+                "Latest Version": "1.2.2",
+                "Package": "exceptiongroup"
+            },
+            {
+                "Current Version": "0.8.3",
+                "Latest Version": "2.1.0",
+                "Package": "executing"
+            },
+            {
+                "Current Version": "2.20.0",
+                "Latest Version": "2.21.0",
+                "Package": "fastjsonschema"
+            },
+            {
+                "Current Version": "4.54.1",
+                "Latest Version": "4.55.0",
+                "Package": "fonttools"
+            },
+            {
+                "Current Version": "1.0.2",
+                "Latest Version": "1.0.7",
+                "Package": "httpcore"
+            },
+            {
+                "Current Version": "0.27.0",
+                "Latest Version": "0.28.0",
+                "Package": "httpx"
+            },
+            {
+                "Current Version": "7.0.1",
+                "Latest Version": "8.5.0",
+                "Package": "importlib-metadata"
+            },
+            {
+                "Current Version": "8.15.0",
+                "Latest Version": "8.18.1",
+                "Package": "ipython"
+            },
+            {
+                "Current Version": "0.19.1",
+                "Latest Version": "0.19.2",
+                "Package": "jedi"
+            },
+            {
+                "Current Version": "0.9.25",
+                "Latest Version": "0.10.0",
+                "Package": "json5"
+            },
+            {
+                "Current Version": "2023.12.1",
+                "Latest Version": "2024.10.1",
+                "Package": "jsonschema-specifications"
+            },
+            {
+                "Current Version": "8.6.0",
+                "Latest Version": "8.6.3",
+                "Package": "jupyter_client"
+            },
+            {
+                "Current Version": "2.2.0",
+                "Latest Version": "2.2.5",
+                "Package": "jupyter-lsp"
+            },
+            {
+                "Current Version": "2.14.1",
+                "Latest Version": "2.14.2",
+                "Package": "jupyter_server"
+            },
+            {
+                "Current Version": "0.4.4",
+                "Latest Version": "0.5.3",
+                "Package": "jupyter_server_terminals"
+            },
+            {
+                "Current Version": "4.2.5",
+                "Latest Version": "4.3.1",
+                "Package": "jupyterlab"
+            },
+            {
+                "Current Version": "0.50.1",
+                "Latest Version": "0.50.2",
+                "Package": "jupyterlab_git"
+            },
+            {
+                "Current Version": "0.1.2",
+                "Latest Version": "0.3.0",
+                "Package": "jupyterlab-pygments"
+            },
+            {
+                "Current Version": "2.1.3",
+                "Latest Version": "3.0.2",
+                "Package": "MarkupSafe"
+            },
+            {
+                "Current Version": "0.1.6",
+                "Latest Version": "0.1.7",
+                "Package": "matplotlib-inline"
+            },
+            {
+                "Current Version": "2.0.4",
+                "Latest Version": "3.0.2",
+                "Package": "mistune"
+            },
+            {
+                "Current Version": "0.10.0",
+                "Latest Version": "0.10.1",
+                "Package": "nbclient"
+            },
+            {
+                "Current Version": "0.2.3",
+                "Latest Version": "0.2.4",
+                "Package": "notebook_shim"
+            },
+            {
+                "Current Version": "2.10.1",
+                "Latest Version": "4.1.0",
+                "Package": "optuna"
+            },
+            {
+                "Current Version": "7.4.0",
+                "Latest Version": "7.7.0",
+                "Package": "overrides"
+            },
+            {
+                "Current Version": "24.1",
+                "Latest Version": "24.2",
+                "Package": "packaging"
+            },
+            {
+                "Current Version": "1.5.0",
+                "Latest Version": "1.5.1",
+                "Package": "pandocfilters"
+            },
+            {
+                "Current Version": "0.8.3",
+                "Latest Version": "0.8.4",
+                "Package": "parso"
+            },
+            {
+                "Current Version": "4.8.0",
+                "Latest Version": "4.9.0",
+                "Package": "pexpect"
+            },
+            {
+                "Current Version": "10.4.0",
+                "Latest Version": "11.0.0",
+                "Package": "pillow"
+            },
+            {
+                "Current Version": "24.2",
+                "Latest Version": "24.3.1",
+                "Package": "pip"
+            },
+            {
+                "Current Version": "3.10.0",
+                "Latest Version": "4.3.6",
+                "Package": "platformdirs"
+            },
+            {
+                "Current Version": "3.0.43",
+                "Latest Version": "3.0.48",
+                "Package": "prompt-toolkit"
+            },
+            {
+                "Current Version": "5.28.3",
+                "Latest Version": "5.29.0",
+                "Package": "protobuf"
+            },
+            {
+                "Current Version": "5.9.0",
+                "Latest Version": "6.1.0",
+                "Package": "psutil"
+            },
+            {
+                "Current Version": "0.2.2",
+                "Latest Version": "0.2.3",
+                "Package": "pure-eval"
+            },
+            {
+                "Current Version": "18.0.0",
+                "Latest Version": "18.1.0",
+                "Package": "pyarrow"
+            },
+            {
+                "Current Version": "2.21",
+                "Latest Version": "2.22",
+                "Package": "pycparser"
+            },
+            {
+                "Current Version": "2.10.1",
+                "Latest Version": "2.10.2",
+                "Package": "pydantic"
+            },
+            {
+                "Current Version": "2.6.0",
+                "Latest Version": "2.6.1",
+                "Package": "pygame"
+            },
+            {
+                "Current Version": "2.15.1",
+                "Latest Version": "2.18.0",
+                "Package": "Pygments"
+            },
+            {
+                "Current Version": "3.1.4",
+                "Latest Version": "3.2.0",
+                "Package": "pyparsing"
+            },
+            {
+                "Current Version": "2024.1",
+                "Latest Version": "2024.2",
+                "Package": "pytz"
+            },
+            {
+                "Current Version": "25.1.2",
+                "Latest Version": "26.2.0",
+                "Package": "pyzmq"
+            },
+            {
+                "Current Version": "0.30.2",
+                "Latest Version": "0.35.1",
+                "Package": "referencing"
+            },
+            {
+                "Current Version": "0.10.6",
+                "Latest Version": "0.21.0",
+                "Package": "rpds-py"
+            },
+            {
+                "Current Version": "1.8.2",
+                "Latest Version": "1.8.3",
+                "Package": "Send2Trash"
+            },
+            {
+                "Current Version": "72.1.0",
+                "Latest Version": "75.6.0",
+                "Package": "setuptools"
+            },
+            {
+                "Current Version": "1.3.0",
+                "Latest Version": "1.3.1",
+                "Package": "sniffio"
+            },
+            {
+                "Current Version": "2.5",
+                "Latest Version": "2.6",
+                "Package": "soupsieve"
+            },
+            {
+                "Current Version": "0.2.0",
+                "Latest Version": "0.6.3",
+                "Package": "stack-data"
+            },
+            {
+                "Current Version": "0.17.1",
+                "Latest Version": "0.18.1",
+                "Package": "terminado"
+            },
+            {
+                "Current Version": "1.2.1",
+                "Latest Version": "1.4.0",
+                "Package": "tinycss2"
+            },
+            {
+                "Current Version": "2.0.1",
+                "Latest Version": "2.2.1",
+                "Package": "tomli"
+            },
+            {
+                "Current Version": "6.4.1",
+                "Latest Version": "6.4.2",
+                "Package": "tornado"
+            },
+            {
+                "Current Version": "4.67.0",
+                "Latest Version": "4.67.1",
+                "Package": "tqdm"
+            },
+            {
+                "Current Version": "0.13.1",
+                "Latest Version": "0.14.0",
+                "Package": "typer"
+            },
+            {
+                "Current Version": "2.9.0.20240906",
+                "Latest Version": "2.9.0.20241003",
+                "Package": "types-python-dateutil"
+            },
+            {
+                "Current Version": "1.26.20",
+                "Latest Version": "2.2.3",
+                "Package": "urllib3"
+            },
+            {
+                "Current Version": "24.8.0",
+                "Latest Version": "24.11.1",
+                "Package": "webcolors"
+            },
+            {
+                "Current Version": "0.44.0",
+                "Latest Version": "0.45.1",
+                "Package": "wheel"
+            },
+            {
+                "Current Version": "4.13.0.0",
+                "Latest Version": "4.13.3.0",
+                "Package": "z3-solver"
+            },
+            {
+                "Current Version": "3.20.2",
+                "Latest Version": "3.21.0",
+                "Package": "zipp"
+            }
+        ]
+    }
+}

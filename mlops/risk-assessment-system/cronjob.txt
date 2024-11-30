@@ -1,0 +1,2 @@
+﻿# I leave the pathes generic because they differ in each environment (probably)
+*/10 * * * * /path/to/python /path/to/fullprocess.py

@@ -1,0 +1,45 @@
+-- Minesweeper ----------------------------
+
+The model:
+
+Axioms:
+
+Safe cell: a cell that does not contain a mine
+Mine cell: a cell that contains a mine, it is hidden
+Unrevealed field: a cell from which we don't know if it contains a mine and the count of it (if it doesn't contains a mine)
+
+Neighbors((1,1)): {(0,0), (0,1), (0,2) ..., 2,2} = cell count count := Sentence
+
+Cell count = 0 : a safe cell AND is not connected with another cell, that contains a mine
+Cell count > 0 : a safe cell which is connected with count fields which contains count bombs
+
+
+Conclusions:
+
+A cell can have max 8 neighbors, depending on its position.
+A cell on an edge/border has always 3 neighbors.
+
+Inference #1: Cells with count = 0:
+If a cell (in a sentence) has the count == 0, then all adjacent cells contains no mines!
+The count in fields with count == 0 is not shown on the playfield.
+
+Inference #2: cells with count == number of cells in a sentence:
+If a Sentence has count == number of cells in the sentence, then all adjacent fields contain a mine.
+
+If we remove a safe field from the sentence, then the count doesn't change.
+If we remove a mine field from the sentence, then the count is decreased by 1.
+
+
+Inference #3: Two sentence reduction to one sentence:
+Any time we have two sentences set1 = count1 and set2 = count2 where set1 is a subset of set2, then we can construct the new sentence set2 - set1 = count2 - count1.
+
+If a neighboring cell is not in the set of a sentence(cell), then it has been marked as safe (and was previously removed)
+
+A cell has either 8 adjacent fields (if it is not an edge cell) or 3 adjacents if it is a corner cell or 5 if it is an edge cell
+
+Edge cells are detectable by their indexes: 
+
+row index = 0 or col index = 0
+row index = count rows -1 or count cols -1
+
+Corner cells (only 4 pieces): (0,0), (0, width -1), (height -1, width -1), (height -1, 0)

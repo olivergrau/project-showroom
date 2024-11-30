@@ -1,0 +1,11 @@
+name: basic_cleaning
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - pip=24.2
+  - python=3.9
+  - pip:
+      - mlflow==2.18.0
+      - wandb==0.18.7
+      - pandas==2.2.3

@@ -1,0 +1,11 @@
+data/__pycache__/adjust_results4_isadog.cpython-310.pyc
+data/__pycache__/calculates_results_stats.cpython-310.pyc
+data/__pycache__/classifier.cpython-310.pyc
+data/__pycache__/classify_images.cpython-310.pyc
+data/__pycache__/get_input_args.cpython-310.pyc
+data/__pycache__/get_pet_labels.cpython-310.pyc
+data/__pycache__/print_functions_for_lab_checks.cpython-310.pyc
+data/__pycache__/print_results.cpython-310.pyc
+data/alexnet_pet-images.txt
+data/vgg_pet-images.txt
+data/resnet_pet-images.txt

@@ -1,0 +1,45 @@
+Parameters for: keypoints_model_FlexibleInceptionNet_config1_aux_6_41.pt
+
+Inception config 2:
+
+Channel configuration (Inception): [{'ch1x1': 96, 'ch3x3_reduce': 144, 'ch3x3': 192, 'ch5x5_reduce': 24, 'ch5x5': 48, 'pool_proj': 48, 'pool': False, 'aux': False, 'aux_in_channels': 0}, {'ch1x1': 192, 'ch3x3_reduce': 192, 'ch3x3': 288, 'ch5x5_reduce': 48, 'ch5x5': 144, 'pool_proj': 96, 'pool': True, 'aux': False, 'aux_in_channels': 0}, {'ch1x1': 288, 'ch3x3_reduce': 144, 'ch3x3': 312, 'ch5x5_reduce': 24, 'ch5x5': 72, 'pool_proj': 96, 'pool': False, 'aux': True, 'aux_in_channels': 768}, {'ch1x1': 240, 'ch3x3_reduce': 168, 'ch3x3': 336, 'ch5x5_reduce': 36, 'ch5x5': 96, 'pool_proj': 96, 'pool': False, 'aux': False, 'aux_in_channels': 0}, {'ch1x1': 192, 'ch3x3_reduce': 192, 'ch3x3': 384, 'ch5x5_reduce': 36, 'ch5x5': 96, 'pool_proj': 96, 'pool': False, 'aux': False, 'aux_in_channels': 0}, {'ch1x1': 168, 'ch3x3_reduce': 216, 'ch3x3': 432, 'ch5x5_reduce': 48, 'ch5x5': 96, 'pool_proj': 96, 'pool': False, 'aux': True, 'aux_in_channels': 792}, {'ch1x1': 384, 'ch3x3_reduce': 240, 'ch3x3': 480, 'ch5x5_reduce': 48, 'ch5x5': 192, 'pool_proj': 192, 'pool': True, 'aux': False, 'aux_in_channels': 0}, {'ch1x1': 384, 'ch3x3_reduce': 240, 'ch3x3': 480, 'ch5x5_reduce': 48, 'ch5x5': 192, 'pool_proj': 192, 'pool': False, 'aux': False, 'aux_in_channels': 0}, {'ch1x1': 576, 'ch3x3_reduce': 288, 'ch3x3': 576, 'ch5x5_reduce': 72, 'ch5x5': 192, 'pool_proj': 192, 'pool': False, 'aux': False, 'aux_in_channels': 0}]
+Use residual: False
+Use aux: True
+Aux Learning rate: 0.0001670656855878109
+Weight Decay for STN Learning Rate: 0.002937131878039964
+Weight Decay Main Learning Rate: 0.003372662783753277
+Weight Decay Aux Learning Rate: 0.009612770199843381
+Lambda regulation: Not used
+Main Learning rate: 5.359311905424814e-05
+STN Learning rate: Not used
+Gradient Clipping Max Norm: None
+Max Number of Epochs: 100
+Batch Size: 16
+Optimizer: Adam
+Loss Function: SmoothL1Loss
+Patience: 15
+Scheduler: Used
+
+
+Parameters for: keypoints_model_FlexibleInceptionNet_config1_aux_good_1.pt
+
+Inception config 1:
+
+Channel configuration (Inception): [{'ch1x1': 64, 'ch3x3_reduce': 96, 'ch3x3': 128, 'ch5x5_reduce': 16, 'ch5x5': 32, 'pool_proj': 32, 'pool': False, 'aux': False}, {'ch1x1': 128, 'ch3x3_reduce': 128, 'ch3x3': 192, 'ch5x5_reduce': 32, 'ch5x5': 96, 'pool_proj': 64, 'pool': True, 'aux': False}, {'ch1x1': 192, 'ch3x3_reduce': 96, 'ch3x3': 208, 'ch5x5_reduce': 16, 'ch5x5': 48, 'pool_proj': 64, 'pool': False, 'aux': True, 'aux_in_channels': 512}, {'ch1x1': 160, 'ch3x3_reduce': 112, 'ch3x3': 224, 'ch5x5_reduce': 24, 'ch5x5': 64, 'pool_proj': 64, 'pool': False, 'aux': False}, {'ch1x1': 128, 'ch3x3_reduce': 128, 'ch3x3': 256, 'ch5x5_reduce': 24, 'ch5x5': 64, 'pool_proj': 64, 'pool': False, 'aux': False}, {'ch1x1': 112, 'ch3x3_reduce': 144, 'ch3x3': 288, 'ch5x5_reduce': 32, 'ch5x5': 64, 'pool_proj': 64, 'pool': False, 'aux': True, 'aux_in_channels': 528}, {'ch1x1': 256, 'ch3x3_reduce': 160, 'ch3x3': 320, 'ch5x5_reduce': 32, 'ch5x5': 128, 'pool_proj': 128, 'pool': True, 'aux': False}, {'ch1x1': 256, 'ch3x3_reduce': 160, 'ch3x3': 320, 'ch5x5_reduce': 32, 'ch5x5': 128, 'pool_proj': 128, 'pool': False, 'aux': False}, {'ch1x1': 384, 'ch3x3_reduce': 192, 'ch3x3': 384, 'ch5x5_reduce': 48, 'ch5x5': 128, 'pool_proj': 128, 'pool': False, 'aux': False}]
+Use residual: False
+Use aux: True
+Aux Learning rate: 0.00039232111250088627
+Weight Decay for STN Learning Rate: 0
+Weight Decay Main Learning Rate: 0.0018351837050757734
+Weight Decay Aux Learning Rate: 1.5214375354654828e-06
+Lambda regulation: Not used
+Main Learning rate: 8.020898051747063e-05
+STN Learning rate: Not used
+Gradient Clipping Max Norm: 1.0
+Max Number of Epochs: 100
+Batch Size: 32
+Optimizer: Adam
+Loss Function: SmoothL1Loss
+Patience: 15
+Scheduler: Used
+
