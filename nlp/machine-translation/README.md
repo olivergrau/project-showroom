@@ -20,27 +20,6 @@ This project focuses on building a deep neural network as part of an end-to-end 
 
 ---
 
-## Setup
-
-### GPU Acceleration
-
-This project requires GPU acceleration for efficient training and inference. GPU-enabled cloud computing resources are supported through the following methods:
-
-1. **Udacity Workspaces (Recommended)**:
-   - Provides direct access to GPU-enabled instances from the classroom environment.
-
-2. **Amazon Web Services (Optional)**:
-   - Instructions are available for setting up a GPU instance using the recommended AMI with all required software and libraries pre-installed.
-
-### Requirements
-
-- Python 3
-- NumPy
-- TensorFlow 1.x
-- Keras 2.x
-
----
-
 ## Applications Demonstrated
 
 - **Natural Language Processing (NLP)**: Translate text between languages using deep learning models.
