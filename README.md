@@ -1,6 +1,6 @@
 # Project Showroom
 
-**Project Showroom** is a curated collection of diverse machine learning, data science, and software development projects, showcasing advanced techniques, reusable templates, and real-world applications. This repository serves as both a professional portfolio and a reference for coding best practices, designed for freelancers and developers to streamline project development and implementation.
+**Project Showroom** is a curated collection of diverse machine learning, data science, and software development projects, showcasing advanced techniques, reusable templates, and real-world applications. This repository serves as both a professional portfolio and a reference for coding best practices, designed for me as a developer to streamline project development and implementation.
 
 ## Highlights
 - **Machine Learning Pipelines**: End-to-end workflows for tasks like rental price prediction, customer churn analysis, and multilingual sentiment analysis.
