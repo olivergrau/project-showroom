@@ -1,0 +1,11 @@
+question,answer,filename
+Who is the manufacturer of the product?,Zyxel,CVE-2020-29583.txt
+Who reported the vulnerability?,researchers from EYE Netherlands,CVE-2020-29583.txt
+What is the vulnerability?,A hardcoded credential vulnerability was identified in the “zyfwp” user,CVE-2020-29583.txt
+How do users protect themselves?,we urge users to install the applicable updates,CVE-2020-29583.txt
+What products are affected?,firewalls and AP controllers,CVE-2020-29583.txt
+How many types of XSS are there?,There are three main kinds of XSS,xss.txt
+What happens after a malicious script is injected?,the attacker can perform a variety of malicious activities,xss.txt
+What is an example of private information an attacker could access after XSS?,cookies that may include session information,xss.txt
+What is the same origin policy?,browsers should limit the resources           accessible to scripts running on a given web site,xss.txt
+What is the common weakness enumeration associated with SQL injection?,CWE-89,xss.txt
