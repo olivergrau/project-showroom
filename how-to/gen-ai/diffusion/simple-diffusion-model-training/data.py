@@ -1,3 +1,4 @@
+from torch.utils.data import ConcatDataset
 from multiprocessing import cpu_count
 import multiprocessing
 import os
@@ -6,10 +7,10 @@ from torch.utils.data import Dataset, DataLoader
 import cv2
 from PIL import Image
 
-class CompCarsDatasetGAN(Dataset):
+class CompCarsDataset(Dataset):
     def __init__(self, root_path, annotations_file, transform=None):
         """
-        Custom Dataset class for CompCars, ignoring labels for GAN.
+        Custom Dataset class for CompCars dataset.
 
         Args:
             root_path (str): Path to the root directory of CompCars dataset.
@@ -49,13 +50,13 @@ class CompCarsDatasetGAN(Dataset):
 
         return image
 
-def get_compcars_gan_dataloader(root_path, annotations_file, image_size, batch_size, workers=4):
+def get_compcars_gan_dataloader(root_path, annotations_files, image_size, batch_size, workers=4):
     """
     Creates a DataLoader for CompCars dataset for GANs.
 
     Args:
         root_path (str): Path to the CompCars dataset.
-        annotations_file (str): Path to the annotation file for the dataset split.
+        annotations_files (str): Path to the annotation file for the dataset split (multiple).
         image_size (int): Size to resize the images.
         batch_size (int): Batch size for the DataLoader.
         workers (int): Number of worker threads for data loading.
@@ -65,20 +66,23 @@ def get_compcars_gan_dataloader(root_path, annotations_file, image_size, batch_s
     """
     transform = transforms.Compose(
         [
-            transforms.Resize((image_size, image_size)),            
+            transforms.Resize((image_size, image_size)),   
+            transforms.RandomHorizontalFlip(),         
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
         ]
     )
+    
+    datasets = []
+    for annotations_file in annotations_files:
+        dataset = CompCarsDataset(
+            root_path=root_path,
+            annotations_file=annotations_file,
+            transform=transform
+        )
+        datasets.append(dataset)
 
-    dataset = CompCarsDatasetGAN(
-        root_path=root_path,
-        annotations_file=annotations_file,
-        transform=transform
-    )
-
-    print(f"Loading CompCars dataset for GAN with {len(dataset)} samples.")
-
+    dataset = ConcatDataset(datasets)
     dataloader = DataLoader(
         dataset,
         batch_size=batch_size,
@@ -88,3 +92,4 @@ def get_compcars_gan_dataloader(root_path, annotations_file, image_size, batch_s
     )
 
     return dataloader
+

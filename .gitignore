@@ -170,4 +170,6 @@ data-science/identify-customer-segments/CUSTOMERS_Subset.csv
 computer-vision/image-captioning/datasets/
 mlruns/
 peft/lightweight-fine-tuning/leightweight-fine-tuning.zip
-how-to/gen-ai/gan/data
+how-to/gen-ai/gan/data/
+how-to/gen-ai/diffusion/data/
+how-to/gen-ai/datasets/
