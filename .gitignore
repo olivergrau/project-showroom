@@ -163,13 +163,13 @@ nlp/dnn-spech-recognizer/data/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 .idea/
 
-computer-vision/facial-keypoints/data/
-data-science/identify-customer-segments/AZDIAS_Feature_Summary.csv
-data-science/identify-customer-segments/AZDIAS_Subset.csv
-data-science/identify-customer-segments/CUSTOMERS_Subset.csv
-computer-vision/image-captioning/datasets/
+projects/computer-vision/facial-keypoints/data/
+projects/data-science/identify-customer-segments/AZDIAS_Feature_Summary.csv
+projects/data-science/identify-customer-segments/AZDIAS_Subset.csv
+projects/data-science/identify-customer-segments/CUSTOMERS_Subset.csv
+projects/computer-vision/image-captioning/datasets/
 mlruns/
-peft/lightweight-fine-tuning/leightweight-fine-tuning.zip
-how-to/gen-ai/gan/data/
-how-to/gen-ai/diffusion/data/
-how-to/gen-ai/datasets/
+projects/peft/lightweight-fine-tuning/leightweight-fine-tuning.zip
+concepts/generative-ai/gan/data/
+concepts/generative-ai/diffusion/data/
+concepts/generative-ai/datasets/
