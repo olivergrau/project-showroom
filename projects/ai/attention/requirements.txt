@@ -1,0 +1,4 @@
+pillow
+tensorflow
+transformers
+tf-keras

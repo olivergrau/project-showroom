@@ -1,0 +1,14 @@
+name: train_val_test_split
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9.0
+  - pip=24.2
+  - requests=2.32.3
+  - scikit-learn=1.5.2
+  - pip:
+      - mlflow==2.18.0
+      - wandb==0.18.7
+      - pandas==2.2.3
+      - git+https://github.com/olivergrau/project-showroom/tree/main/projects/mlops/airbnb-regression#egg=wandb-utils&subdirectory=components

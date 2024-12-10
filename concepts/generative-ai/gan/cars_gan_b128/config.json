@@ -1,0 +1,18 @@
+{
+    "manual_seed": 42,
+    "policy": "color,translation",
+    "latent_dimension": 256,
+    "batch_size": 256,
+    "n_epochs": 40,
+    "image_size": 64,
+    "num_channels": 3,
+    "lr": 0.002,
+    "beta1": 0.7,
+    "g_feat_map_size": 64,
+    "d_feat_map_size": 64,
+    "data_path": "data/",
+    "workers": 32,
+    "save_iter": 10,
+    "outdir": "cars_gan_b128",
+    "clip_value": 0.01
+}
