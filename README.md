@@ -7,6 +7,7 @@
 - **Deep Learning Applications**: Projects on image classification, sentiment analysis, neural machine translation, and more, leveraging frameworks like TensorFlow and PyTorch.
 - **NLP and Text Processing**: Sentiment analysis, translation pipelines, and part-of-speech tagging using state-of-the-art transformer models.
 - **MLOps Demonstrations**: Integration of tools like MLflow, Weights & Biases, and FastAPI for scalable, production-ready solutions.
+- **Recommendation System**: How to develop a recommendation system from the ground up (starting with a simple approach to more complex models)
 - **Code Templates**: Reusable components for data cleaning, preprocessing, model evaluation, and API deployment.
 
 ## Purpose
