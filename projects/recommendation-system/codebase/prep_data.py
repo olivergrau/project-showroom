@@ -359,7 +359,7 @@ class FeatureEngineeringUsingBERT:
         }
         return movie_id_to_content, item_content_features
     
-class MovieLensDataset(Dataset):
+class UserItemRecommendationDataset(Dataset):
     """
     PyTorch Dataset for MovieLens, now incorporating user content embeddings.
     """
