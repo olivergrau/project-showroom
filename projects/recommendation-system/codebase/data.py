@@ -394,7 +394,7 @@ class ContentFeatureMovieLensDataset(Dataset):
     Dataset for MovieLens providing user and movie profiles linked by ratings.
     Returns all interactions (rated movies) for a given user profile during training.
     """
-    def __init__(self, ratings, user_profiles, movie_profiles):
+    def __init__(self, ratings, user_profiles, movie_profiles, genre_labels):
         """
         Args:
             ratings (pd.DataFrame): DataFrame with 'userIndex', 'movieIndex', and 'rating'.
@@ -407,6 +407,7 @@ class ContentFeatureMovieLensDataset(Dataset):
         self.user_indices = ratings['userIndex'].values
         self.movie_indices = ratings['movieIndex'].values
         self.ratings = ratings['rating'].values
+        self.genre_labels = genre_labels  # Multi-hot genre labels for movies
 
         self.user_profiles = user_profiles
         self.movie_profiles = movie_profiles       
@@ -419,10 +420,115 @@ class ContentFeatureMovieLensDataset(Dataset):
         user_profile = torch.tensor(self.user_profiles[self.user_indices[idx]], dtype=torch.float32)
         movie_profile = torch.tensor(self.movie_profiles[self.movie_indices[idx]], dtype=torch.float32)
         rating = torch.tensor(self.ratings[idx], dtype=torch.float32)
-        return user_profile, movie_profile, rating
+        genre_labels = torch.tensor(self.genre_labels[idx], dtype=torch.float32)  # Multi-hot genre labels
+        return user_profile, movie_profile, rating, genre_labels
+
+class EvaluationDataset(Dataset):
+    """
+    Dataset that enumerates (userIndex, movieIndex) for all test users x all movies.
+    """
+    def __init__(self, test_data, user_profiles, movie_profiles):
+        """
+        Args:
+            test_data (pd.DataFrame): Has userIndex, movieIndex, rating columns (row-by-row).
+            user_profiles (np.ndarray): [num_users, user_dim].
+            movie_profiles (np.ndarray): [num_movies, movie_dim].
+        """
+        self.user_profiles = user_profiles
+        self.movie_profiles = movie_profiles
+
+        # 1) Which users appear in the test set?
+        self.unique_test_users = test_data['userIndex'].unique()
+
+        # 2) All valid movies we might recommend from
+        #    Typically, this is the entire set of movie embeddings you have.
+        self.all_movie_indices = np.arange(len(movie_profiles))
+
+        # 3) Build pairs: (userIndex, movieIndex)
+        self.eval_pairs = []
+        for user_idx in self.unique_test_users:
+            for movie_idx in self.all_movie_indices:
+                self.eval_pairs.append((user_idx, movie_idx))
+
+    def __len__(self):
+        return len(self.eval_pairs)
+
+    def __getitem__(self, idx):
+        user_idx, movie_idx = self.eval_pairs[idx]
+        user_profile = torch.tensor(self.user_profiles[user_idx], dtype=torch.float32)
+        movie_profile = torch.tensor(self.movie_profiles[movie_idx], dtype=torch.float32)
+        
+        # Return userIndex/movieIndex too, so we can group results
+        return user_profile, movie_profile, user_idx, movie_idx
+
+# Wrapping genre label generator into a Dataset subclass
+class LazyGenreMovieLensDataset(Dataset):
+    """
+    A memory-efficient extension of ContentFeatureMovieLensDataset with lazy genre label extraction.
+    """
+    def __init__(self, ratings, user_profiles, movie_profiles, genre_vocab):
+        """
+        Args:
+            ratings (pd.DataFrame): DataFrame with 'userIndex', 'movieIndex', and 'rating'.
+            user_profiles (np.ndarray): Precomputed user profiles (shape: [num_users, profile_dim]).
+            movie_profiles (np.ndarray): Precomputed movie profiles (shape: [num_movies, profile_dim]).
+            genre_vocab (list): List of genre vocabulary to extract genre labels.
+        """
+        self.ratings = ratings
+        self.user_indices = ratings['userIndex'].values
+        self.movie_indices = ratings['movieIndex'].values
+        self.ratings = ratings['rating'].values
+
+        self.user_profiles = user_profiles
+        self.movie_profiles = movie_profiles
+        self.genre_vocab = genre_vocab  # Used for lazy extraction of genres
+
+    def __len__(self):
+        return len(self.ratings)
+
+    def __getitem__(self, idx):
+        """
+        Returns a single data point: user profile, movie profile, rating, and genre labels.
+        """
+        # Extract user and movie profiles
+        user_idx = self.user_indices[idx]
+        movie_idx = self.movie_indices[idx]
+
+        user_profile = torch.tensor(self.user_profiles[user_idx], dtype=torch.float32)
+        movie_profile = torch.tensor(self.movie_profiles[movie_idx], dtype=torch.float32)
+
+        # Extract rating
+        rating = torch.tensor(self.ratings[idx], dtype=torch.float32)
+
+        # Lazy extraction of genre labels
+        genre_labels = self.movie_profiles[movie_idx, -len(self.genre_vocab):]  # Extract genre part
+
+        return user_profile, movie_profile, rating, torch.tensor(genre_labels, dtype=torch.float32)
 
 # Helper functions for encoding
-def multi_hot_encode_genres(df, all_genres, split='|', genres_column='genres'):
+
+# Extract multi-hot genre labels for each movie in the same order as `ratings`
+def extract_genre_labels(ratings_df, movie_profiles, genre_vocab):
+    """
+    Extracts genre labels for each movie based on the ratings DataFrame.
+    
+    Args:
+        ratings_df (pd.DataFrame): Ratings DataFrame with 'movieIndex' column.
+        movie_profiles (np.ndarray): Precomputed movie profiles with multi-hot genres.
+
+    Returns:
+        np.ndarray: Genre labels (multi-hot encoded) aligned with ratings DataFrame.
+    """
+    # Extract the indices of the movies in the ratings DataFrame
+    movie_indices = ratings_df['movieIndex'].values
+    
+    # Select the multi-hot genre labels from `movie_profiles`
+    genre_labels = movie_profiles[movie_indices][:, -len(genre_vocab):]  # Assuming genres are the last features
+    
+    return genre_labels
+
+
+def multi_hot_encode_genres(df, genre_vocab, split='|', genres_column='genres'):
     """
     Multi-hot encode genres.
     Args:
@@ -431,11 +537,11 @@ def multi_hot_encode_genres(df, all_genres, split='|', genres_column='genres'):
     Returns:
         np.ndarray: Multi-hot encoded genres.
     """
-    genre_to_index = {genre: i for i, genre in enumerate(all_genres)}
-    multi_hot = np.zeros((len(df), len(all_genres)), dtype=int)
+    genre_to_index = {genre: i for i, genre in enumerate(genre_vocab)}
+    multi_hot = np.zeros((len(df), len(genre_vocab)), dtype=int)
 
     for i, row in df.iterrows():
-        movie_genres = row[genres_column].split(split)  # Assuming pipe-separated genres
+        movie_genres = [genre.strip() for genre in row[genres_column].split(split)]
         for genre in movie_genres:
             if genre in genre_to_index:
                 multi_hot[i, genre_to_index[genre]] = 1
@@ -476,7 +582,7 @@ def one_hot_encode_column(dataframe, column_name):
     one_hot_encoded = encoder.fit_transform(dataframe[[column_name]])
     return one_hot_encoded
 
-def encode_text(texts, model, batch_size=32):
+def encode_text(texts, model, batch_size=32, device='cuda'):
     """Generate embeddings for a list of texts."""
     embeddings = []
     for i in range(0, len(texts), batch_size):
