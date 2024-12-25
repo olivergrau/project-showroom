@@ -501,7 +501,7 @@ class LazyGenreMovieLensDataset(Dataset):
         rating = torch.tensor(self.ratings[idx], dtype=torch.float32)
 
         # Lazy extraction of genre labels
-        genre_labels = self.movie_profiles[movie_idx, -len(self.genre_vocab):]  # Extract genre part
+        genre_labels = self.movie_profiles[movie_idx, (-len(self.genre_vocab) - 768):-768]  # Extract genre part
 
         return user_profile, movie_profile, rating, torch.tensor(genre_labels, dtype=torch.float32)
 
@@ -527,6 +527,33 @@ def extract_genre_labels(ratings_df, movie_profiles, genre_vocab):
     
     return genre_labels
 
+def batch_encode_text(texts, text_model, convert_to_tensor=True):
+    """
+    Encodes a list of strings using a text_model like SentenceTransformer in one or a few batches.
+    
+    Args:
+        texts (list): List of strings to encode.
+        text_model: SentenceTransformer (or similar) model for text embedding.
+        convert_to_tensor (bool): Whether to convert embeddings to a torch.Tensor.
+    
+    Returns:
+        np.ndarray: Encoded embeddings (shape [len(texts), embedding_dim]).
+    """
+    # Encode all texts in one shot (or you can split into mini-batches if memory is a concern)
+    embeddings_torch = text_model.encode(texts, convert_to_tensor=convert_to_tensor)
+    
+    # Move to CPU and convert to NumPy
+    embeddings_np = embeddings_torch.cpu().numpy()
+    return embeddings_np
+
+def normalize_multiple_columns(df, col_list):
+    """
+    Vectorized normalization of multiple numeric columns at once using MinMaxScaler.
+    This performs a single fit over all columns, or each column individually in a vectorized manner.
+    """
+    scaler = MinMaxScaler()
+    df[col_list] = scaler.fit_transform(df[col_list])
+    return df
 
 def multi_hot_encode_genres(df, genre_vocab, split='|', genres_column='genres'):
     """
