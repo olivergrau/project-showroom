@@ -110,19 +110,21 @@ class ConfigurableRecommendationNet(nn.Module):
         use_fm=True,           # Toggle Factorization Machine block
         multitask=False,       # Enable multitask learning
         genres_vocab_size=0,   # Vocabulary size for auxiliary label prediction
-        dense_hidden=128,
-        fm_latent_dim=16,
-        fm_hidden_dim=32,
-        transformer_d_model=128,
-        transformer_nhead=4,
-        transformer_feedforward=256,
-        transformer_layers=2
+        dense_hidden=128, # Hidden size for dense layers
+        fm_latent_dim=16, # Latent dimension for FM layer
+        fm_hidden_dim=32, # Hidden size for FM projection
+        transformer_d_model=128, # Model dimension for Transformer
+        transformer_nhead=4, # Attention heads for Transformer
+        transformer_feedforward=256, # Feedforward dimension for Transformer
+        transformer_layers=2,   # Number of layers for Transformer
+        activation="ReLU"  # Activation function: "ReLU", "GeLU", or "LeakyReLU"
     ):
         super(ConfigurableRecommendationNet, self).__init__()
 
         self.use_transformer = use_transformer
         self.use_fm = use_fm
         self.multitask = multitask
+        self.activation = self._get_activation(activation)
 
         # 1. Dense layers for user and movie
         self.user_dense = nn.Linear(user_dim, dense_hidden)
@@ -133,7 +135,7 @@ class ConfigurableRecommendationNet(nn.Module):
             self.fm_layer = FactorizationMachineLayer(user_dim + movie_dim, fm_latent_dim)            
             self.fm_proj = nn.Sequential(
                 nn.Linear(fm_latent_dim, fm_hidden_dim),
-                nn.ReLU(),
+                self.activation,
                 nn.Dropout(0.2)
             )
 
@@ -158,7 +160,7 @@ class ConfigurableRecommendationNet(nn.Module):
         # Single-task prediction (rating prediction)
         self.fc = nn.Sequential(
             nn.Linear(combined_dim, dense_hidden),
-            nn.ReLU(),
+            self.activation,
             nn.Dropout(0.2),
             nn.Linear(dense_hidden, 1)  # Single-task rating output
         )
@@ -184,8 +186,8 @@ class ConfigurableRecommendationNet(nn.Module):
         # -------------------------------
         # 1. Dense transformations
         # -------------------------------
-        user_emb_dense = torch.relu(self.user_dense(user_profile))
-        movie_emb_dense = torch.relu(self.movie_dense(movie_profile))
+        user_emb_dense = self.activation(self.user_dense(user_profile))
+        movie_emb_dense = self.activation(self.movie_dense(movie_profile))
 
         # Combine user and movie embeddings
         combined_features = user_emb_dense + movie_emb_dense
@@ -221,177 +223,15 @@ class ConfigurableRecommendationNet(nn.Module):
             genre_pred = self.genre_head(combined_features)  # [batch_size, num_genres]
             return rating_pred, genre_pred
 
-class HybridRecommendationModel(nn.Module):
-    """
-    A hybrid content-based recommendation network that uses:
-      - Dense layers for user/movie numeric & multi-hot features
-      - A gated mechanism to weight features
-      - A Factorization Machine layer for pairwise interactions
-      - A Transformer + attention block for advanced feature dependencies
-      - A final prediction head (single-task or multi-task)
-    """
-    def __init__(
-        self,
-        user_dim,       # dimensionality of user profile (numerical + multi-hot + embeddings)
-        movie_dim,      # dimensionality of movie profile (numerical + multi-hot + embeddings)
-        dense_hidden=128,
-        fm_latent_dim=16,
-        transformer_d_model=128,
-        transformer_nhead=4,
-        transformer_feedforward=256,
-        transformer_layers=2,
-        multitask=False,   # if True, output rating + genre predictions (example)
-        genres_vocab_size=0       # used if multitask is True
-    ):
-        super(HybridRecommendationModel, self).__init__()
-        self.multitask = multitask
-
-        # 1. Dense layers for user and movie
-        #    (reduce dimensionality or transform the raw features)
-        self.user_dense = nn.Linear(user_dim, dense_hidden)
-        self.movie_dense = nn.Linear(movie_dim, dense_hidden)
-
-        # 2. Gated mechanisms for user and movie
-        self.user_gate = GatedMechanism(user_dim, dense_hidden)
-        self.movie_gate = GatedMechanism(movie_dim, dense_hidden)
-
-        # 3. Factorization Machine (FM) for pairwise feature interactions
-        #    We'll feed the raw features (user_dim + movie_dim) into FM
-        self.fm_layer = FactorizationMachineLayer(user_dim + movie_dim, fm_latent_dim)
-
-        # 4. Transformer + Attention for user/movie embeddings
-        self.transformer_block = TransformerAttentionBlock(
-            d_model=transformer_d_model,
-            nhead=transformer_nhead,
-            dim_feedforward=transformer_feedforward,
-            num_layers=transformer_layers
-        )
-
-        # Projection to match transformer's d_model
-        self.user_transform_proj = nn.Linear(dense_hidden, transformer_d_model)
-        self.movie_transform_proj = nn.Linear(dense_hidden, transformer_d_model)
-
-        # 5. Final MLP (prediction head) to produce rating
-        #    We'll combine FM output + transform-attended features
-        combined_dim = fm_latent_dim + transformer_d_model
-        self.fc = nn.Sequential(
-            nn.Linear(combined_dim, dense_hidden),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(dense_hidden, 1)  # single-task rating output
-        )
-
-        # If multi-task (e.g., rating + genre prediction),
-        # add an additional head for genre classification
-        if self.multitask and genres_vocab_size > 0:
-            self.genre_head = nn.Linear(combined_dim, genres_vocab_size)
-        
-        # Print model details
-        self.print_model_details(user_dim, movie_dim, dense_hidden, fm_latent_dim, 
-                                 transformer_d_model, transformer_nhead, transformer_feedforward,
-                                 transformer_layers, multitask, genres_vocab_size)
-
-    def forward(self, user_profile, movie_profile):
+    def _get_activation(self, activation):
         """
-        Args:
-            user_profile (torch.Tensor): [batch_size, user_dim]
-            movie_profile (torch.Tensor): [batch_size, movie_dim]
-
-        Returns:
-            If multitask=False:
-                rating_pred (torch.Tensor): [batch_size, 1]
-            If multitask=True:
-                (rating_pred, genre_pred)
-                  rating_pred: [batch_size, 1]
-                  genre_pred: [batch_size, num_genres]
+        Helper method to return the activation function based on the parameter.
         """
-
-        # -------------------------------
-        # 1. Dense transformations
-        # -------------------------------
-        user_emb_dense = torch.relu(self.user_dense(user_profile))
-        movie_emb_dense = torch.relu(self.movie_dense(movie_profile))
-
-        # -------------------------------
-        # 2. Gated Mechanisms
-        # -------------------------------
-        user_gated = self.user_gate(user_profile)   # shape [batch_size, dense_hidden]
-        movie_gated = self.movie_gate(movie_profile)
-
-        # Combine user_emb_dense + user_gated (example: sum or concat)
-        user_final = user_emb_dense + user_gated
-        movie_final = movie_emb_dense + movie_gated
-
-        # -------------------------------
-        # 3. Factorization Machine
-        #    We feed the raw (user_profile + movie_profile) to FM
-        # -------------------------------
-        fm_input = torch.cat([user_profile, movie_profile], dim=1)  # [batch_size, user_dim + movie_dim]
-        fm_output = self.fm_layer(fm_input)  # [batch_size], the interaction term
-
-        # -------------------------------
-        # 4. Transformer + Attention
-        #    We'll treat user_final and movie_final as a "sequence" of length 2
-        # -------------------------------
-        # Project to transformer's d_model
-        user_for_transform = self.user_transform_proj(user_final).unsqueeze(1)  # [batch, 1, d_model]
-        movie_for_transform = self.movie_transform_proj(movie_final).unsqueeze(1)  # [batch, 1, d_model]
-
-        # Combine into a sequence of length=2
-        transform_input = torch.cat([user_for_transform, movie_for_transform], dim=1)  # [batch, 2, d_model]
-
-        # Pass through the transformer + attention block
-        attended_features = self.transformer_block(transform_input)  # [batch_size, d_model]
-
-        # -------------------------------
-        # 5. Final MLP for rating
-        # -------------------------------
-        # Combine fm_output + attended_features
-        combined = torch.cat([attended_features, fm_output], dim=1)
-        # shape is now [batch_size, d_model + 1]
-
-        rating_pred = self.fc(combined)  # [batch_size, 1]
-
-        if not self.multitask:
-            return rating_pred, None
+        if activation == "ReLU":
+            return nn.ReLU()
+        elif activation == "GeLU":
+            return nn.GELU()
+        elif activation == "LeakyReLU":
+            return nn.LeakyReLU(negative_slope=0.01)
         else:
-            # Multi-task branch example: genre prediction
-            genre_pred = self.genre_head(combined)  # [batch_size, num_genres]
-            return rating_pred, genre_pred
-    
-    def print_model_details(self, user_dim, movie_dim, dense_hidden, fm_latent_dim, 
-                            transformer_d_model, transformer_nhead, transformer_feedforward, 
-                            transformer_layers, multitask, genres_vocab_size):
-        """
-        Prints model parameters and architecture details.
-        """
-        print("Model Details:")
-        print(f"  User profile dimension: {user_dim}")
-        print(f"  Movie profile dimension: {movie_dim}")
-        print(f"  Dense hidden size: {dense_hidden}")
-        print(f"  FM latent dimension: {fm_latent_dim}")
-        print(f"  Transformer model dimension: {transformer_d_model}")
-        print(f"  Transformer attention heads: {transformer_nhead}")
-        print(f"  Transformer feedforward dimension: {transformer_feedforward}")
-        print(f"  Transformer layers: {transformer_layers}")
-        print(f"  Multi-task enabled: {multitask}")
-        if multitask:
-            print(f"  Genre vocab size: {genres_vocab_size}")
-        print("\nModel Summary:")
-        print(self)
-
-    def log_metrics(self, epoch, loss, rating_loss=None, genre_loss=None):
-        """
-        Logs metrics to TensorBoard.
-
-        Args:
-            epoch (int): Current training epoch.
-            loss (float): Total loss.
-            rating_loss (float, optional): Rating prediction loss.
-            genre_loss (float, optional): Genre prediction loss.
-        """
-        self.writer.add_scalar("Loss/Total", loss, epoch)
-        if rating_loss is not None:
-            self.writer.add_scalar("Loss/Rating", rating_loss, epoch)
-        if genre_loss is not None and self.multitask:
-            self.writer.add_scalar("Loss/Genre", genre_loss, epoch)
+            raise ValueError(f"Unsupported activation function: {activation}")
