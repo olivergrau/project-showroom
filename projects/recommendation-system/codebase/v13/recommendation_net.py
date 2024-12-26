@@ -97,7 +97,7 @@ class TransformerAttentionBlock(nn.Module):
         attended_output = torch.sum(transformed * attn_weights, dim=1)
         return attended_output
 
-class ContentRecommendationNet(nn.Module):
+class ConfigurableRecommendationNet(nn.Module):
     """
     A hybrid content-based recommendation network with optional Transformer and FM blocks,
     and support for multitask learning (e.g., predicting ratings and auxiliary labels).
@@ -118,7 +118,7 @@ class ContentRecommendationNet(nn.Module):
         transformer_feedforward=256,
         transformer_layers=2
     ):
-        super(ContentRecommendationNet, self).__init__()
+        super(ConfigurableRecommendationNet, self).__init__()
 
         self.use_transformer = use_transformer
         self.use_fm = use_fm
@@ -221,7 +221,7 @@ class ContentRecommendationNet(nn.Module):
             genre_pred = self.genre_head(combined_features)  # [batch_size, num_genres]
             return rating_pred, genre_pred
 
-class AdvancedContentRecommendationNet(nn.Module):
+class HybridRecommendationModel(nn.Module):
     """
     A hybrid content-based recommendation network that uses:
       - Dense layers for user/movie numeric & multi-hot features
@@ -243,7 +243,7 @@ class AdvancedContentRecommendationNet(nn.Module):
         multitask=False,   # if True, output rating + genre predictions (example)
         genres_vocab_size=0       # used if multitask is True
     ):
-        super(AdvancedContentRecommendationNet, self).__init__()
+        super(HybridRecommendationModel, self).__init__()
         self.multitask = multitask
 
         # 1. Dense layers for user and movie

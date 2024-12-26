@@ -71,7 +71,8 @@ class MovieProfileCreator(IProfileCreator):
         movies_df = normalize_multiple_columns(movies_df, self.numeric_cols)
         numeric_features = movies_df[self.numeric_cols].to_numpy()  # shape: [num_movies, 5]
 
-        movie_genres_scaled = scale_multi_hot_to_embedding(movie_genres_encoded, movie_tag_embeddings)
+        # this worsens the precision of the net
+        # movie_genres_scaled = scale_multi_hot_to_embedding(movie_genres_encoded, movie_tag_embeddings)
 
         # 5) Combine all features
         movie_profiles = np.hstack([
@@ -138,8 +139,9 @@ class UserProfileCreator(IProfileCreator):
         user_tag_embeddings = batch_encode_text(
             user_tags_list, self.text_model, convert_to_tensor=True
         )
-
-        user_genres_scaled = scale_multi_hot_to_embedding(user_genres_encoded, user_tag_embeddings)
+        
+        # this worsens the precision of the net
+        # user_genres_scaled = scale_multi_hot_to_embedding(user_genres_encoded, user_tag_embeddings)
 
         # 5) Combine main profile
         user_profiles_without_one_hot = np.hstack([
