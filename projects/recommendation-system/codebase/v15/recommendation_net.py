@@ -149,12 +149,72 @@ def flatten_tokens_for_fm(token_dict):
     """
     return torch.cat([tensor for tensor in token_dict.values()], dim=1)
 
+# -------------------------------------------------------------------
+# 1. Positional Encoding
+# -------------------------------------------------------------------
+class PositionalEncoding(nn.Module):
+    """
+    Standard sinusoidal positional encoding as described in "Attention Is All You Need".
+    """
+    def __init__(self, d_model, max_len=5000):
+        super(PositionalEncoding, self).__init__()
+        
+        # Create a long enough PEx table
+        pe = torch.zeros(max_len, d_model)
+        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+        # i = 0, 2, 4,... (even indices); i+1 => odd indices
+        div_term = torch.exp(-torch.arange(0, d_model, 2).float() * (torch.log(torch.tensor(10000.0)) / d_model))
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        
+        pe = pe.unsqueeze(0)  # shape: [1, max_len, d_model]
+        self.register_buffer('pe', pe)
 
+    def forward(self, x):
+        """
+        Args:
+            x (torch.Tensor): shape [batch_size, seq_len, d_model]
+        Returns:
+            torch.Tensor: shape [batch_size, seq_len, d_model]
+        """
+        seq_len = x.size(1)  # length of the sequence dimension
+        # Add the positional encoding to each element in the batch
+        x = x + self.pe[:, :seq_len].to(x.device)
+        return x
+
+
+# -------------------------------------------------------------------
+# 2. Segment Encoding
+# -------------------------------------------------------------------
+class SegmentEncoding(nn.Module):
+    """
+    Trainable segment embedding to distinguish different parts of the input sequence.
+    Example use case: user tokens vs. movie tokens vs. FM token.
+    """
+    def __init__(self, num_segments, d_model):
+        """
+        Args:
+            num_segments (int): Number of segment types (e.g., 2 for user/movie or 3 for user/movie/FM).
+            d_model (int): Embedding dimension for each segment.
+        """
+        super(SegmentEncoding, self).__init__()
+        self.segment_embedding = nn.Embedding(num_segments, d_model)
+
+    def forward(self, x, segment_ids):
+        """
+        Args:
+            x (torch.Tensor): shape [batch_size, seq_len, d_model]
+            segment_ids (torch.Tensor): shape [batch_size, seq_len], values in [0..num_segments-1]
+        Returns:
+            torch.Tensor: shape [batch_size, seq_len, d_model]
+        """
+        segment_embeds = self.segment_embedding(segment_ids)  # [batch_size, seq_len, d_model]
+        return x + segment_embeds
 
 class RecommendationNet(nn.Module):
     """
     A hybrid content-based recommendation network with optional Transformer and FM blocks,
-    and support for multitask learning (e.g., predicting ratings and jaccard similarity for genres).
+    and support for positional + segment encodings.
     """
 
     def __init__(
@@ -171,8 +231,11 @@ class RecommendationNet(nn.Module):
         activation="ReLU",
         propagate_attention_only=True,
         fm_enabled=True,
-        transformer_enabled=True,        
-        debug_timings=False,           # <--- Prints timing breakdown if True
+        transformer_enabled=True,
+        debug_timings=False,
+        # New arguments for encodings:
+        use_positional_encoding=True,
+        use_segment_encoding=True,
     ):
         super(RecommendationNet, self).__init__()
 
@@ -180,6 +243,8 @@ class RecommendationNet(nn.Module):
         self.fm_enabled = fm_enabled
         self.transformer_enabled = transformer_enabled
         self.debug_timings = debug_timings
+        self.use_positional_encoding = use_positional_encoding
+        self.use_segment_encoding = use_segment_encoding
 
         # Token Dim Dictionaries
         self.user_token_dims = {
@@ -203,9 +268,7 @@ class RecommendationNet(nn.Module):
 
         # 2. Factorization Machine (FM)
         if self.fm_enabled:
-            self.fm_layer = FactorizationMachineLayer(
-                self.user_dim + self.movie_dim, fm_latent_dim
-            )
+            self.fm_layer = FactorizationMachineLayer(self.user_dim + self.movie_dim, fm_latent_dim)
             self.gated_mechanism = GatedMechanism(fm_latent_dim, fm_hidden_dim)
             self.fm_to_token_proj = nn.Linear(fm_hidden_dim, transformer_d_model)
         else:
@@ -224,15 +287,19 @@ class RecommendationNet(nn.Module):
         else:
             self.transformer_block = None
 
-        # Calculate how many tokens we place into the sequence
-        # Base: user_tokens(7) + movie_tokens(8)
-        # 
-        # Plus 1 if fm_enabled
-        num_sequence_tokens = (
-            len(self.user_token_dims)
-            + len(self.movie_token_dims)            
-            + (1 if self.fm_enabled else 0)
-        )
+        # 4. Positional + Segment Encoding
+        #    We'll define up to 3 segments: user=0, movie=1, fm=2
+        #    If you only want 2 segments, set fm to be segment=1 as well.
+        self.positional_encoding = PositionalEncoding(transformer_d_model) if use_positional_encoding else None
+        # Three segments: user, movie, FM
+        self.num_segments = 3 if fm_enabled else 2
+        self.segment_encoding = SegmentEncoding(self.num_segments, transformer_d_model) if use_segment_encoding else None
+
+        # Calculate how many tokens we place into the sequence:
+        # user_tokens(7) + movie_tokens(8) + 1 if fm_enabled
+        num_sequence_tokens = (len(self.user_token_dims)
+                               + len(self.movie_token_dims)
+                               + (1 if self.fm_enabled else 0))
 
         # Determine dimension for final MLP input
         if self.transformer_enabled:
@@ -240,8 +307,8 @@ class RecommendationNet(nn.Module):
                 combined_features_dim = (num_sequence_tokens * transformer_d_model) + transformer_d_model
             else:
                 combined_features_dim = transformer_d_model
-        else:            
-            combined_features_dim = transformer_d_model * num_sequence_tokens        
+        else:
+            combined_features_dim = transformer_d_model * num_sequence_tokens
 
         # 5. Final MLP (prediction head)
         self.fc = nn.Sequential(
@@ -265,8 +332,12 @@ class RecommendationNet(nn.Module):
             propagate_attention_only=propagate_attention_only,
             fm_enabled=fm_enabled,
             transformer_enabled=transformer_enabled,
-            debug_timings=debug_timings
+            debug_timings=debug_timings,
+            use_positional_encoding=use_positional_encoding,
+            use_segment_encoding=use_segment_encoding,
+            num_segments=self.num_segments
         )
+
 
     def forward(self, user_tokens, movie_tokens):
         timings = {}
@@ -274,37 +345,48 @@ class RecommendationNet(nn.Module):
 
         # 1. Movie Token Embedding
         start_time = time.time()
-        movie_emb = self.movie_embedder(movie_tokens)  # Shape: [batch_size, 8, d_model]
+        movie_emb = self.movie_embedder(movie_tokens)  # [batch_size, movie_seq_len, d_model]
         timings["Movie Token Embedding"] = time.time() - start_time
 
         # 2. User Token Embedding
         start_time = time.time()
-        user_emb = self.user_embedder(user_tokens)  # Shape: [batch_size, 7, d_model]
+        user_emb = self.user_embedder(user_tokens)  # [batch_size, user_seq_len, d_model]
         timings["User Token Embedding"] = time.time() - start_time
 
-        # 4. Optional Factorization Machine
+        # 3. Optional Factorization Machine
         start_time = time.time()
         fm_token = None
         if self.fm_enabled:
             user_dense = flatten_tokens_for_fm(user_tokens)  # [batch_size, user_dim]
             movie_dense = flatten_tokens_for_fm(movie_tokens)  # [batch_size, movie_dim]
-            fm_input = torch.cat([user_dense, movie_dense], dim=1)
+            fm_input = torch.cat([user_dense, movie_dense], dim=1)  # [batch_size, user_dim+movie_dim]
 
             fm_output = self.fm_layer(fm_input)  # [batch_size, fm_latent_dim]
             gated_fm_output = self.gated_mechanism(fm_output)  # [batch_size, fm_hidden_dim]
             fm_token = self.fm_to_token_proj(gated_fm_output).unsqueeze(1)  # [batch_size, 1, d_model]
         timings["Factorization Machine"] = time.time() - start_time
 
-        # 5. Combine tokens for Transformer
+        # 4. Combine tokens for the (optional) Transformer
         start_time = time.time()
         combined_tokens_list = [user_emb, movie_emb]
         if fm_token is not None:
             combined_tokens_list.append(fm_token)
-        
-        combined_tokens = torch.cat(combined_tokens_list, dim=1)
+        combined_tokens = torch.cat(combined_tokens_list, dim=1)  # [batch_size, seq_len, d_model]
         timings["Token Combination"] = time.time() - start_time
 
-        # 6. Optional Transformer + Flatten
+        # 5. (New) Generate segment IDs and apply positional & segment encodings if enabled
+        if self.use_positional_encoding or self.use_segment_encoding:
+            # Build segment IDs: user=0, movie=1, fm=2
+            segment_ids = self._generate_segment_ids(user_emb, movie_emb, fm_token)
+            # [batch_size, seq_len]
+
+            if self.use_positional_encoding:
+                combined_tokens = self.positional_encoding(combined_tokens)  # shape unchanged
+
+            if self.use_segment_encoding:
+                combined_tokens = self.segment_encoding(combined_tokens, segment_ids)  # shape unchanged
+
+        # 6. Optional Transformer
         start_time = time.time()
         if self.transformer_enabled:
             attended_features = self.transformer_block(combined_tokens)  # [batch_size, d_model]
@@ -314,8 +396,8 @@ class RecommendationNet(nn.Module):
             else:
                 combined_features = attended_features
         else:
-            combined_features = combined_tokens.view(combined_tokens.size(0), -1)            
-
+            # Flatten all tokens if Transformer is disabled
+            combined_features = combined_tokens.view(combined_tokens.size(0), -1)
         timings["Transformer"] = time.time() - start_time
 
         # 7. Final MLP
@@ -324,8 +406,6 @@ class RecommendationNet(nn.Module):
         timings["Final MLP"] = time.time() - start_time
 
         total_time = time.time() - total_time_start
-
-        # Print timings only if debug_timings is True
         if self.debug_timings:
             print("\n--- Timing Breakdown ---")
             for stage, t in timings.items():
@@ -333,8 +413,38 @@ class RecommendationNet(nn.Module):
                 print(f"{stage}: {t:.6f} seconds ({pct:.2f}%)")
             print("-------------------------")
 
-        # Return rating and None (for multi-task placeholders)
+        # Return rating and None for multi-task placeholders
         return rating_pred, None
+
+
+    def _generate_segment_ids(self, user_emb, movie_emb, fm_token):
+        """
+        Creates segment IDs for user, movie, and optionally FM.
+        user = 0, movie = 1, fm = 2
+        """
+        batch_size = user_emb.size(0)
+        user_seq_len = user_emb.size(1)
+        movie_seq_len = movie_emb.size(1)
+        
+        # Segment 0 for user
+        user_segment_ids = torch.zeros(batch_size, user_seq_len, dtype=torch.long, device=user_emb.device)
+        # Segment 1 for movie
+        movie_segment_ids = torch.ones(batch_size, movie_seq_len, dtype=torch.long, device=user_emb.device)
+
+        if fm_token is not None:
+            # If fm_token is used, treat it as segment 2
+            fm_segment_ids = torch.full(
+                (batch_size, 1),
+                2,
+                dtype=torch.long,
+                device=user_emb.device
+            )
+            segment_ids = torch.cat([user_segment_ids, movie_segment_ids, fm_segment_ids], dim=1)
+        else:
+            segment_ids = torch.cat([user_segment_ids, movie_segment_ids], dim=1)
+
+        # shape: [batch_size, total_seq_len]
+        return segment_ids
 
     def _get_activation(self, activation):
         if activation == "ReLU":
