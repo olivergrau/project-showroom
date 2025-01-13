@@ -74,7 +74,6 @@ class TransformerRULModel(nn.Module):
             assert x.size(0) == mask.size(0), "Batch size mismatch between input and mask"
             assert x.size(1) == mask.size(1), "Sequence length mismatch between input and mask"
 
-
         # 1. Project input features to d_model
         x = self.input_projection(x)  # Shape: (batch_size, seq_len, d_model)
 

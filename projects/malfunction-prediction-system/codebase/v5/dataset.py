@@ -148,62 +148,56 @@ class CMAPSSDataset(Dataset):
 
 class SequenceCMAPSSDataset(torch.utils.data.Dataset):
     def __init__(self, dataset, sequence_length=30, overlap=0):
-        """
-        Wraps the CMAPSSDataset to return sequences for each engine.
-
-        Args:
-            dataset (Dataset): The original CMAPSSDataset instance.
-            sequence_length (int): Number of time steps in each sequence.
-            overlap (int): Number of overlapping time steps between consecutive sequences.
-        """
+        
+        # Plausibility checks for parameters
+        if not isinstance(sequence_length, int) or sequence_length <= 0:
+            raise ValueError(f"sequence_length must be a positive integer. Got {sequence_length}.")
+        
+        if not isinstance(overlap, int) or overlap < 0:
+            raise ValueError(f"overlap must be a non-negative integer. Got {overlap}.")
+        
+        if overlap >= sequence_length:
+            raise ValueError(
+                f"overlap must be smaller than sequence_length. Got overlap={overlap} and sequence_length={sequence_length}."
+            )
+        
         self.dataset = dataset
         self.sequence_length = sequence_length
         self.overlap = overlap
         self.feature_cols = dataset.feature_cols
-        
+
         # Generate sequence indices per engine
         self.indices = self._generate_indices()
 
     def _generate_indices(self):
-        """
-        Generate sequence start and end indices for all engines.
-        Ensures no sequence spans across engines and handles overlaps.
-
-        Returns:
-            list of tuples: Each tuple contains (engine_id, start_idx, end_idx).
-        """
         indices = []
         for engine_id in self.dataset.data['engine_id'].unique():
             engine_data = self.dataset.data[self.dataset.data['engine_id'] == engine_id]
             num_cycles = len(engine_data)
-            
-            # Generate start indices with the specified overlap
-            for start_idx in range(0, num_cycles - self.sequence_length + 1, self.sequence_length - self.overlap):
-                end_idx = start_idx + self.sequence_length
+
+            # Generate sequences with possible leftover partial sequences
+            start_idx = 0
+            step = self.sequence_length - self.overlap if (self.sequence_length - self.overlap) > 0 else 1
+            while start_idx < num_cycles:
+                end_idx = min(start_idx + self.sequence_length, num_cycles)
                 indices.append((engine_id, start_idx, end_idx))
-        
+
+                # Move to the next window start
+                start_idx += step
+
         return indices
 
     def __len__(self):
         return len(self.indices)
 
     def __getitem__(self, idx):
-        """
-        Fetch a sequence and its corresponding RUL (for the last cycle in the sequence).
-
-        Args:
-            idx (int): Index of the sequence.
-
-        Returns:
-            Tuple[torch.Tensor, torch.Tensor, int, torch.Tensor]: Sequence features, RUL target, engine_id, and cycles.
-        """
         engine_id, start_idx, end_idx = self.indices[idx]
         engine_data = self.dataset.data[self.dataset.data['engine_id'] == engine_id].iloc[start_idx:end_idx]
-        
+
         # Extract features
         features = engine_data[self.feature_cols].values
         features = torch.tensor(features, dtype=torch.float32)
-        
+
         # Extract cycles
         cycles = engine_data['cycle'].values
         cycles = torch.tensor(cycles, dtype=torch.int32)
@@ -212,12 +206,13 @@ class SequenceCMAPSSDataset(torch.utils.data.Dataset):
         if len(features) < self.sequence_length:
             padding = torch.zeros((self.sequence_length - len(features), features.shape[1]))
             features = torch.cat([features, padding], dim=0)
+
             cycle_padding = torch.zeros(self.sequence_length - len(cycles), dtype=torch.int32)
             cycles = torch.cat([cycles, cycle_padding], dim=0)
-        
-        # Extract RUL for the last time step
+
+        # Extract RUL for train mode
         if self.dataset.mode == "train":
-            rul = engine_data['RUL'].iloc[-1]  # RUL for the last cycle
+            rul = engine_data['RUL'].iloc[-1]
             rul = torch.tensor(rul, dtype=torch.float32)
             return features, rul, engine_id, cycles
         else:
