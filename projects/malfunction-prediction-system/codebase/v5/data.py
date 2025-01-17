@@ -57,10 +57,10 @@ def prepare_kfold_cross_validation_loaders(original_dataset, sequence_length, ov
 
         # Create DataLoaders
         train_loader = DataLoader(
-            train_dataset, batch_size=batch_size, shuffle=False, num_workers=0, collate_fn=lambda batch: collate_fn(batch, mode="train"))
+            train_dataset, batch_size=batch_size, shuffle=False, num_workers=8, collate_fn=lambda batch: collate_fn(batch, mode="train"))
         
         val_loader = DataLoader(
-            val_dataset, batch_size=batch_size, shuffle=False, num_workers=0, collate_fn=lambda batch: collate_fn(batch, mode="train"))
+            val_dataset, batch_size=batch_size, shuffle=False, num_workers=8, collate_fn=lambda batch: collate_fn(batch, mode="train"))
 
         fold_loaders.append((train_loader, val_loader))
     

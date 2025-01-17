@@ -1,0 +1,8 @@
+Best hyperparameters for sequence length 30: {'nhead': 2, 'd_model': 32, 'dim_feedforward': 320, 'num_layers': 3, 'dropout': 0.2699744380424609, 'lr': 0.0022767365905590883, 'weight_decay': 3.638271237094139e-05}
+Best validation RMSE for sequence length 30: 35.1862
+
+Best hyperparameters for sequence length 60: {'nhead': 4, 'd_model': 64, 'dim_feedforward': 384, 'num_layers': 1, 'dropout': 0.24053094755426754, 'lr': 0.001809014183701563, 'weight_decay': 4.2718802744699435e-05}
+Best validation RMSE for sequence length 60: 27.6176
+
+Best hyperparameters for sequence length 90: {'nhead': 4, 'd_model': 64, 'dim_feedforward': 512, 'num_layers': 1, 'dropout': 0.13735482552405948, 'lr': 0.005143397544304009, 'weight_decay': 3.17232476692929e-06}
+Best validation RMSE for sequence length 90: 18.1997
