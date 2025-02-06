@@ -174,3 +174,5 @@ concepts/generative-ai/diffusion/data/
 concepts/generative-ai/datasets/
 projects/recommendation-system/data/
 projects/malfunction-prediction-system/data/
+projects/ner-knowledge-graph/preprocessed_data/
+projects/anomaly-detection/data/
