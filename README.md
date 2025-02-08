@@ -18,5 +18,3 @@ This repository is a professional showcase for potential clients, providing:
 
 Explore the projects to see how cutting-edge technology meets practical implementation. Whether you're interested in data science, machine learning, or software engineering, this repository demonstrates the depth and versatility of my work. 
 
-It will continue to be updated with new projects.
-
