@@ -1,0 +1,8 @@
+| Optimizer      | Update Rule | Handles Oscillations? | Adapts Learning Rate? | Works Well for RNNs? | Common Use Cases |
+|---------------|------------|---------------------|---------------------|------------------|----------------|
+| **SGD (Stochastic Gradient Descent)** | $ \theta_{t+1} = \theta_t - \eta \nabla J(\theta_t) $ | ❌ No | ❌ No | ❌ No | Basic ML models |
+| **SGD + Momentum** | $ v_t = \beta v_{t-1} + (1 - \beta) \nabla J(\theta_t) $ <br> $ \theta_{t+1} = \theta_t - \eta v_t $ | ✅ Yes | ❌ No | ❌ No | CNNs, Deep Nets |
+| **AdaGrad** | $ v_t = v_{t-1} + \nabla J(\theta_t)^2 $ <br> $ \theta_{t+1} = \theta_t - \frac{\eta}{\sqrt{v_t} + \epsilon} \nabla J(\theta_t) $ | ✅ Yes | ✅ Yes (but decays too fast) | ❌ No | NLP, Sparse Data |
+| **RMSProp** | $ v_t = \beta v_{t-1} + (1 - \beta) \nabla J(\theta_t)^2 $ <br> $ \theta_{t+1} = \theta_t - \frac{\eta}{\sqrt{v_t} + \epsilon} \nabla J(\theta_t) $ | ✅ Yes | ✅ Yes | ✅ Yes | RNNs, Deep Learning |
+| **Adam (Adaptive Moment Estimation)** | $ m_t = \beta_1 m_{t-1} + (1 - \beta_1) \nabla J(\theta_t) $ <br> $ v_t = \beta_2 v_{t-1} + (1 - \beta_2) \nabla J(\theta_t)^2 $ <br> $ \hat{m_t} = \frac{m_t}{1 - \beta_1^t}, \quad \hat{v_t} = \frac{v_t}{1 - \beta_2^t} $ <br> $ \theta_{t+1} = \theta_t - \frac{\eta}{\sqrt{\hat{v_t}} + \epsilon} \hat{m_t} $ | ✅ Yes | ✅ Yes | ✅ Yes | General-purpose Deep Learning |
+| **AdamW (Adam with Weight Decay)** | Same as Adam but with **weight decay**: <br> $ \theta_{t+1} = \theta_t - \frac{\eta}{\sqrt{\hat{v_t}} + \epsilon} \hat{m_t} - \lambda \theta_t $ | ✅ Yes | ✅ Yes | ✅ Yes | Transformers, Large-Scale Deep Learning |
