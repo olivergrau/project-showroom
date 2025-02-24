@@ -177,3 +177,5 @@ projects/recommendation-system/data/
 projects/malfunction-prediction-system/data/
 projects/ner-knowledge-graph/preprocessed_data/
 projects/anomaly-detection/data/
+projects/reinforcement-learning/navigation/p1_navigation/runs/
+projects/reinforcement-learning/navigation/p1_navigation/Banana_Linux/
