@@ -4,8 +4,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np
-from codebase.net.actor import Actor
-from codebase.net.critic import Critic
+from codebase.td3.net.actor import Actor
+from codebase.td3.net.critic import Critic
 
 DEBUG = True
 

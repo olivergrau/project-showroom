@@ -7,7 +7,7 @@ import signal
 from unityagents import UnityEnvironment
 from torch.utils.tensorboard import SummaryWriter
 
-from codebase.agent import TD3Agent
+from codebase.td3.agent import TD3Agent
 
 DEBUG = False
 

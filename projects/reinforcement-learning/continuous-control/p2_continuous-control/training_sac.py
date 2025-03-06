@@ -1,4 +1,4 @@
-# training.py
+# training_sac.py
 from datetime import datetime
 import os
 import time
@@ -21,57 +21,48 @@ print("Logging directory:", log_dir)
 from codebase.replay.replay_buffer import ReplayWrapper, UniformReplay
 from codebase.replay.replay_proxy import ReplayProxy
 
-# Our worker imports
-from codebase.env_worker import env_worker
-from codebase.train_worker import train_worker
-from codebase.eval_worker import eval_worker  # New evaluation worker
+# Our SAC worker imports
+from codebase.sac.env_worker import env_worker
+from codebase.sac.train_worker import train_worker
+from codebase.sac.eval_worker import eval_worker  # Evaluation worker for SAC
 
 def shutdown_properly(env_process, eval_process, train_process, replay_process, stop_flag, env_parent_conn, eval_parent_conn):
     """Gracefully shut down all processes and clean up resources."""
     print("\nShutting down environment and evaluation processes...")
     stop_flag.set()
-
-    # Give processes some time to detect the stop flag
     time.sleep(5)
-
-    # Explicitly stop each process if it's still alive
+    
     if env_process.is_alive():
         print("Stopping environment worker...")
         env_parent_conn.send("stop")
         env_process.join()
-
+    
     if eval_process.is_alive():
         print("Stopping evaluation worker...")
         eval_parent_conn.send({"command": "stop"})
         eval_process.join()
-
+    
     if train_process.is_alive():
         print("Stopping training worker...")
-        train_process.terminate()  # Training might not have a stop signal, so we force terminate
+        train_process.terminate()
         train_process.join()
-
-    # Close the replay buffer process
+    
     if replay_process.is_alive():
         replay_process.close()
-
+    
     print("All processes terminated.")
     print("Training ended.")
-
 
 if __name__ == '__main__':
     mp.set_start_method('spawn', force=True)
     stop_flag = mp.Event()
-    gamma = 0.95
+    gamma = 0.99
     batch_size = 256
     lr_actor = 1e-4
     lr_critic = 1e-4
-    policy_delay = 1
-    upd_w_frequency = 1
-    policy_noise_clip = 0.5
-    exploration_start_noise = 0.2
-    policy_noise = 0.2
-    exploration_noise_decay = 0.9999
-    reward_scaling_factor = 500.0
+    lr_alpha = 1e-4  # Learning rate for temperature parameter
+    upd_w_frequency = 2
+    reward_scaling_factor = 1.0
 
     # Create pipes for inter-process communication
     env_parent_conn, env_child_conn = mp.Pipe()
@@ -85,15 +76,14 @@ if __name__ == '__main__':
         'n_step': 1,
         'history_length': 1
     }
-
     replay_process = ReplayWrapper(
         replay_cls=UniformReplay,
-        replay_kwargs=replay_kwargs, # contains batch size
+        replay_kwargs=replay_kwargs,
         asynchronous=True
     )
     replay_proxy = ReplayProxy(replay_process.pipe)
 
-    # Create environment process
+    # Create environment process for SAC
     env_process = mp.Process(
         target=env_worker,
         args=(
@@ -104,14 +94,12 @@ if __name__ == '__main__':
             gamma, 
             lr_actor, 
             lr_critic,
-            exploration_start_noise,            
-            exploration_noise_decay,
             reward_scaling_factor,
             log_dir
         )
     )
 
-    # Create evaluation process
+    # Create evaluation process for SAC
     eval_process = mp.Process(
         target=eval_worker,
         args=(
@@ -123,23 +111,22 @@ if __name__ == '__main__':
             lr_actor, 
             lr_critic,
             reward_scaling_factor,
-            log_dir, 100)
+            log_dir, 
+            100
+        )
     )
 
-    # Start environment and evaluation processes (to be started before training)
+    # Start environment and evaluation processes before training begins.
     env_process.start()
     eval_process.start()
 
     print("Waiting for ready signals from environment and evaluation workers...")
-
-    # Wait for both workers to signal readiness (blocking call)
     ready_env = env_parent_conn.recv()
     print(f"[Main] Received ready signal from env_worker: {ready_env}")
-    
     ready_eval = eval_parent_conn.recv()
     print(f"[Main] Received ready signal from eval_worker: {ready_eval}")
 
-    # Create training process
+    # Create training process for SAC
     train_process = mp.Process(
         target=train_worker,
         args=(
@@ -150,29 +137,19 @@ if __name__ == '__main__':
             gamma, 
             lr_actor, 
             lr_critic,
+            lr_alpha,
             upd_w_frequency,
-            policy_noise,
-            policy_noise_clip,
-            policy_delay,
             log_dir
-        )  # Pass the parent conns so training can send messages
+        )
     )
-
-    # Start processes
-
     train_process.start()
 
     try:
-        # Wait until the training process finishes
         train_process.join()
-
     except KeyboardInterrupt:
-        # If Ctrl+C is detected, gracefully shut down
         print("\n[Training] Ctrl+C detected! Stopping training...")
         shutdown_properly(
             env_process, eval_process, train_process, replay_process, stop_flag, env_parent_conn, eval_parent_conn)
-
     finally:
-        # Ensure cleanup even if an exception occurs
         shutdown_properly(
             env_process, eval_process, train_process, replay_process, stop_flag, env_parent_conn, eval_parent_conn)
