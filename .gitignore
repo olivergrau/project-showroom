@@ -179,4 +179,5 @@ projects/ner-knowledge-graph/preprocessed_data/
 projects/anomaly-detection/data/
 projects/reinforcement-learning/navigation/p1_navigation/runs/
 projects/reinforcement-learning/navigation/p1_navigation/Banana_Linux/
+projects/reinforcement-learning/continuous-control/p2_continuous-control/Reacher_Linux/
 to-look-at/
