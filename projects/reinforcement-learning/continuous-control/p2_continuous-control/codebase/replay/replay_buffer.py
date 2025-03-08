@@ -13,7 +13,6 @@ import random
 from collections import namedtuple
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
-#device = "cpu"
 
 Transition = namedtuple('Transition', ['state', 'action', 'reward', 'next_state', 'mask'])
 PrioritizedTransition = namedtuple('Transition',
@@ -237,9 +236,6 @@ class ReplayWrapper(mp.Process):
     def run(self):
         replay = self.replay_cls(**self.replay_kwargs)
         
-        # Signal readiness:
-        self.worker_pipe.send(["ready", None])
-
         cache = []
 
         cache_initialized = False
@@ -259,6 +255,9 @@ class ReplayWrapper(mp.Process):
             batch_data = [tensor(x) for x in batch_data]
             for cache_x, x in zip(cache[cur_cache], batch_data):
                 cache_x.copy_(x)
+
+        # Signal readiness:
+        self.worker_pipe.send(["ready", None])
 
         while True:
             op, data = self.worker_pipe.recv()

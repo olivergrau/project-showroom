@@ -15,6 +15,10 @@ if not hasattr(np, "int_"):
 # 1. Normalize state space before states get into the replay buffer (action space is already normalized)
 # 2. Examine if Ornstein/Uhlenbeck noise is necessary for exploration
 # 3. Update actor (every iteration - maybe update every x iterations?)
+#     Here I should try a "slow-down" of the env worker (by collecting transitiosn for 20 steps and then feed them) 
+#       to see if the agent can learn better
+
+# 4. Synchrounous architecture
 
 
 print("Current working directory:", os.getcwd())
@@ -71,11 +75,13 @@ if __name__ == '__main__':
     batch_size = 256
     lr_actor = 1e-4
     lr_critic = 1e-4
-    upd_w_frequency = 1 
+    upd_w_frequency = 5 
+    use_ou_noise = False
     exploration_start_noise = 0.2
     exploration_noise_decay = 0.9999
     reward_scaling_factor = 1.0
-    use_reward_normalization = True
+    use_reward_normalization = False
+    throttle_env_by = 0.0  # 0.0 means no throttling (increase throttle to lower update rate)
 
     # Create pipes for inter-process communication
     env_parent_conn, env_child_conn = mp.Pipe()
@@ -102,6 +108,7 @@ if __name__ == '__main__':
         target=env_worker,
         args=(
             env_child_conn, 
+            eval_child_conn,
             replay_proxy, 
             stop_flag, 
             "Reacher_Linux/Reacher.x86_64", 
@@ -111,6 +118,8 @@ if __name__ == '__main__':
             exploration_start_noise,            
             exploration_noise_decay,
             reward_scaling_factor,
+            throttle_env_by,
+            use_ou_noise,
             log_dir
         )
     )
@@ -149,13 +158,14 @@ if __name__ == '__main__':
         args=(
             replay_proxy, 
             stop_flag, 
-            env_parent_conn, 
+            env_parent_conn, # train acts as a coordinator so it needs to communicate with env and eval
             eval_parent_conn, 
             gamma, 
             lr_actor, 
             lr_critic,
             upd_w_frequency, 
-            use_reward_normalization,           
+            use_reward_normalization,
+            use_ou_noise,       
             log_dir
         )  # Pass the parent conns so training can send messages
     )
