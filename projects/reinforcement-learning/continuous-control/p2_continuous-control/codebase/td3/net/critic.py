@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class Critic(nn.Module):
-    def __init__(self, state_size=33, action_size=4, hidden1=128, hidden2=256):
+    def __init__(self, state_size=33, action_size=4, hidden1=256, hidden2=256):
         super(Critic, self).__init__()
 
         # The first layer combines state and action.

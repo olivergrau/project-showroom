@@ -14,7 +14,7 @@ if not hasattr(np, "int_"):
 print("Current working directory:", os.getcwd())
 
 # Create a unique log directory based on current datetime
-log_dir = os.path.join("runs", "run_" + datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
+log_dir = os.path.join("runs", "run_td3_" + datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
 print("Logging directory:", log_dir)
 
 # Code for replay buffer
@@ -22,9 +22,9 @@ from codebase.replay.replay_buffer import ReplayWrapper, UniformReplay
 from codebase.replay.replay_proxy import ReplayProxy
 
 # Our worker imports
-from codebase.td3.env_worker import env_worker
-from codebase.td3.train_worker import train_worker
-from codebase.td3.eval_worker import eval_worker  # New evaluation worker
+from codebase.td3.env import env_worker
+from codebase.td3.train import train_worker
+from codebase.td3.eval import eval_worker
 
 def shutdown_properly(env_process, eval_process, train_process, replay_process, stop_flag, env_parent_conn, eval_parent_conn):
     """Gracefully shut down all processes and clean up resources."""
@@ -57,25 +57,36 @@ def shutdown_properly(env_process, eval_process, train_process, replay_process, 
     print("All processes terminated.")
     print("Training ended.")
 
-
 if __name__ == '__main__':
     mp.set_start_method('spawn', force=True)
     stop_flag = mp.Event()
-    gamma = 0.95
+    
+    # Hyperparameters
+    gamma = 0.99
     batch_size = 256
-    lr_actor = 1e-4
-    lr_critic = 1e-4
-    policy_delay = 1
-    upd_w_frequency = 1
-    policy_noise_clip = 0.5
+    lr_actor = 1e-3
+    lr_critic = 1e-3
+    upd_w_frequency = 5 # number of batches / iterations to broadcast the weights to the workers
     exploration_start_noise = 0.2
-    policy_noise = 0.2
     exploration_noise_decay = 0.9999
-    reward_scaling_factor = 500.0
+    reward_scaling_factor = 10.0
+    use_reward_normalization = False
+    throttle_env_by = 0.0  # 0.0 means no throttling (increase throttle to lower update rate)
 
-    # Create pipes for inter-process communication
-    env_parent_conn, env_child_conn = mp.Pipe()
-    eval_parent_conn, eval_child_conn = mp.Pipe()
+    # Communication between env_worker and train_worker
+    env_train_parent_conn, env_train_child_conn = mp.Pipe()
+
+    # Communication between eval_worker and train_worker
+    eval_train_parent_conn, eval_train_child_conn = mp.Pipe()
+
+    # Communication between main process and env_worker (for stop signal)
+    env_main_parent_conn, env_main_child_conn = mp.Pipe()
+
+    # Communication between main process and eval_worker (for stop signal)
+    eval_main_parent_conn, eval_main_child_conn = mp.Pipe()
+
+    # Communication between env_worker and eval_worker (direct)
+    env_eval_parent_conn, env_eval_child_conn = mp.Pipe()
 
     # Start the ReplayWrapper in a separate process
     replay_kwargs = {
@@ -97,7 +108,9 @@ if __name__ == '__main__':
     env_process = mp.Process(
         target=env_worker,
         args=(
-            env_child_conn, 
+            env_train_child_conn, # communication with train_worker (receives new weights)
+            env_eval_child_conn,  # communication with eval_worker
+            env_main_child_conn,  # NEW: Stop signal from main
             replay_proxy, 
             stop_flag, 
             "Reacher_Linux/Reacher.x86_64", 
@@ -107,6 +120,7 @@ if __name__ == '__main__':
             exploration_start_noise,            
             exploration_noise_decay,
             reward_scaling_factor,
+            throttle_env_by,
             log_dir
         )
     )
@@ -115,7 +129,9 @@ if __name__ == '__main__':
     eval_process = mp.Process(
         target=eval_worker,
         args=(
-            eval_child_conn, 
+            eval_train_child_conn, # communication with train_worker
+            env_eval_parent_conn, # communication with env_worker
+            eval_main_child_conn, # NEW: Stop signal from main
             stop_flag, 
             "Reacher_Linux/Reacher.x86_64", 
             30.0, 
@@ -133,10 +149,10 @@ if __name__ == '__main__':
     print("Waiting for ready signals from environment and evaluation workers...")
 
     # Wait for both workers to signal readiness (blocking call)
-    ready_env = env_parent_conn.recv()
+    ready_env = env_main_parent_conn.recv()
     print(f"[Main] Received ready signal from env_worker: {ready_env}")
     
-    ready_eval = eval_parent_conn.recv()
+    ready_eval = eval_main_parent_conn.recv()
     print(f"[Main] Received ready signal from eval_worker: {ready_eval}")
 
     # Create training process
@@ -145,21 +161,18 @@ if __name__ == '__main__':
         args=(
             replay_proxy, 
             stop_flag, 
-            env_parent_conn, 
-            eval_parent_conn, 
+            env_train_parent_conn, # train acts as a coordinator so it needs to communicate with env and eval
+            eval_train_parent_conn, 
             gamma, 
             lr_actor, 
             lr_critic,
-            upd_w_frequency,
-            policy_noise,
-            policy_noise_clip,
-            policy_delay,
+            upd_w_frequency, 
+            use_reward_normalization,      
             log_dir
         )  # Pass the parent conns so training can send messages
     )
 
     # Start processes
-
     train_process.start()
 
     try:
@@ -170,9 +183,9 @@ if __name__ == '__main__':
         # If Ctrl+C is detected, gracefully shut down
         print("\n[Training] Ctrl+C detected! Stopping training...")
         shutdown_properly(
-            env_process, eval_process, train_process, replay_process, stop_flag, env_parent_conn, eval_parent_conn)
+            env_process, eval_process, train_process, replay_process, stop_flag, env_train_parent_conn, eval_train_parent_conn)
 
     finally:
         # Ensure cleanup even if an exception occurs
         shutdown_properly(
-            env_process, eval_process, train_process, replay_process, stop_flag, env_parent_conn, eval_parent_conn)
+            env_process, eval_process, train_process, replay_process, stop_flag, env_train_parent_conn, eval_train_parent_conn)

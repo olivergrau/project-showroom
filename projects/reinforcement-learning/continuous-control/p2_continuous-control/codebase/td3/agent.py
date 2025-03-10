@@ -7,7 +7,7 @@ import numpy as np
 from codebase.td3.net.actor import Actor
 from codebase.td3.net.critic import Critic
 
-DEBUG = True
+DEBUG = False
 
 class TD3Agent:
     def __init__(
@@ -21,6 +21,7 @@ class TD3Agent:
         policy_noise=0.2,
         noise_clip=0.5,
         policy_delay=2,
+        use_reward_normalization=False,
         device=None,
         label="TD3Agent", # to identify the agent
     ):
@@ -34,12 +35,13 @@ class TD3Agent:
         self.total_it = 0
         self.device = device if device is not None else torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.agent_id = "TD3Agent (" + label + ")"
+        self.use_reward_normalization = use_reward_normalization
 
         print()
         print(f"{self.agent_id}: Using device: {self.device}")
 
         # print out all set parameters
-        print(f"{self.agent_id}: state_size={state_size}, action_size={action_size}, actor_lr={lr_actor}, critic_lr={lr_critic}, gamma={gamma}, tau={tau}, policy_noise={policy_noise}, noise_clip={noise_clip}, policy_delay={policy_delay}")
+        print(f"{self.agent_id}: use_reward_norm={use_reward_normalization}, state_size={state_size}, action_size={action_size}, actor_lr={lr_actor}, critic_lr={lr_critic}, gamma={gamma}, tau={tau}, policy_noise={policy_noise}, noise_clip={noise_clip}, policy_delay={policy_delay}")
 
         # Initialize actor and its target
         self.actor = Actor(state_size, action_size).to(self.device)
@@ -108,11 +110,10 @@ class TD3Agent:
             print(f"[{self.agent_id}]: Next_state: shape={next_state.shape}, min={next_state.min().item():.4f}, max={next_state.max().item():.4f}, mean={next_state.mean().item():.4f}")
             print(f"[{self.agent_id}]: Mask: shape={mask.shape}, unique values: {mask.unique()}")  
 
-        use_reward_normalization = True
         epsilon = 1e-6  # small value to prevent division by zero
 
         # Optionally apply z-normalization to the scaled rewards
-        if use_reward_normalization:
+        if self.use_reward_normalization:
             r_mean = scaled_reward.mean()
             r_std  = scaled_reward.std() + epsilon  # prevent division by zero
             normalized_reward = (scaled_reward - r_mean) / r_std

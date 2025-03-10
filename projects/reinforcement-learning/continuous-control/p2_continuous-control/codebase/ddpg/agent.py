@@ -40,7 +40,7 @@ class DDPGAgent:
         use_reward_normalization=False,
         device=None,
         label="DDPGAgent",
-        use_ou_noise=True  # New parameter to enable OU noise
+        use_ou_noise=True
     ):
         self.state_size = state_size
         self.action_size = action_size
@@ -55,6 +55,7 @@ class DDPGAgent:
         print()
         print(f"{self.agent_id}: Using device: {self.device}")
         print(f"{self.agent_id}: use_reward_norm={self.use_reward_normalization}, state_size={state_size}, action_size={action_size}, actor_lr={lr_actor}, critic_lr={lr_critic}, gamma={gamma}, tau={tau}")
+        
         if self.use_ou_noise:
             self.ou_noise = OrnsteinUhlenbeckNoise(action_size, mu=0.0, theta=0.15, sigma=0.2)
             print(f"{self.agent_id}: Ornstein-Uhlenbeck noise enabled with theta=0.15, sigma=0.2")
@@ -69,7 +70,7 @@ class DDPGAgent:
         self.critic = Critic(state_size, action_size).to(self.device)
         self.critic_target = Critic(state_size, action_size).to(self.device)
         self.critic_target.load_state_dict(self.critic.state_dict())
-        self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=lr_critic)
+        self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=lr_critic, weight_decay=1e-5)
 
     def act(self, state, noise=0.0):
         """
@@ -128,7 +129,7 @@ class DDPGAgent:
         next_state = batch.next_state.to(self.device)
         mask = batch.mask.unsqueeze(1).to(self.device)
         
-        # Debug: Print batch statistics for plausibility
+        # Debug: Print batch statistics for plausibility check
         if DEBUG:
             print(f"[{self.agent_id}]: === Batch Statistics ===")
             print(f"[{self.agent_id}]: State: shape={state.shape}, min={state.min().item():.4f}, max={state.max().item():.4f}, mean={state.mean().item():.4f}")
@@ -160,9 +161,12 @@ class DDPGAgent:
         # Update critic
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
+        
+        # Clip gradients to avoid exploding gradients
+        torch.nn.utils.clip_grad_norm_(self.critic.parameters(), max_norm=1.0)
         self.critic_optimizer.step()
         
-        # Update actor (every iteration - maybe update every x iterations?)
+        # Update actor (gradient ascent)
         actor_loss = -self.critic(state, self.actor(state)).mean()
         self.actor_optimizer.zero_grad()
         actor_loss.backward()

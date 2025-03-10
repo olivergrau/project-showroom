@@ -11,16 +11,6 @@ if not hasattr(np, "float_"):
 if not hasattr(np, "int_"):
     np.int_ = np.int64
 
-# ToDos:
-# 1. Normalize state space before states get into the replay buffer (action space is already normalized)
-# 2. Examine if Ornstein/Uhlenbeck noise is necessary for exploration
-# 3. Update actor (every iteration - maybe update every x iterations?)
-#     Here I should try a "slow-down" of the env worker (by collecting transitiosn for 20 steps and then feed them) 
-#       to see if the agent can learn better
-
-# 4. Synchrounous architecture
-
-
 print("Current working directory:", os.getcwd())
 
 # Create a unique log directory based on current datetime
@@ -32,9 +22,9 @@ from codebase.replay.replay_buffer import ReplayWrapper, UniformReplay
 from codebase.replay.replay_proxy import ReplayProxy
 
 # Our worker imports
-from codebase.ddpg.env_worker import env_worker
-from codebase.ddpg.train_worker import train_worker
-from codebase.ddpg.eval_worker import eval_worker  # New evaluation worker
+from codebase.ddpg.env import env_worker
+from codebase.ddpg.train import train_worker
+from codebase.ddpg.eval import eval_worker
 
 def shutdown_properly(env_process, eval_process, train_process, replay_process, stop_flag, env_parent_conn, eval_parent_conn):
     """Gracefully shut down all processes and clean up resources."""
@@ -67,25 +57,39 @@ def shutdown_properly(env_process, eval_process, train_process, replay_process, 
     print("All processes terminated.")
     print("Training ended.")
 
+# ToDo: Fix TD3 and SAC variants and try them with the fixes found for DDPG.
 
 if __name__ == '__main__':
     mp.set_start_method('spawn', force=True)
     stop_flag = mp.Event()
+    
+    # Hyperparameters
     gamma = 0.99
     batch_size = 256
-    lr_actor = 1e-4
+    lr_actor = 1e-3
     lr_critic = 1e-4
-    upd_w_frequency = 5 
-    use_ou_noise = False
+    upd_w_frequency = 1 # number of iterations / batches before updating the weights for the workers
+    use_ou_noise = True
     exploration_start_noise = 0.2
     exploration_noise_decay = 0.9999
     reward_scaling_factor = 1.0
     use_reward_normalization = False
     throttle_env_by = 0.0  # 0.0 means no throttling (increase throttle to lower update rate)
 
-    # Create pipes for inter-process communication
-    env_parent_conn, env_child_conn = mp.Pipe()
-    eval_parent_conn, eval_child_conn = mp.Pipe()
+    # Communication between env_worker and train_worker
+    env_train_parent_conn, env_train_child_conn = mp.Pipe()
+
+    # Communication between eval_worker and train_worker
+    eval_train_parent_conn, eval_train_child_conn = mp.Pipe()
+
+    # Communication between main process and env_worker (for stop signal)
+    env_main_parent_conn, env_main_child_conn = mp.Pipe()
+
+    # Communication between main process and eval_worker (for stop signal)
+    eval_main_parent_conn, eval_main_child_conn = mp.Pipe()
+
+    # Communication between env_worker and eval_worker (direct)
+    env_eval_parent_conn, env_eval_child_conn = mp.Pipe()
 
     # Start the ReplayWrapper in a separate process
     replay_kwargs = {
@@ -107,8 +111,9 @@ if __name__ == '__main__':
     env_process = mp.Process(
         target=env_worker,
         args=(
-            env_child_conn, 
-            eval_child_conn,
+            env_train_child_conn, # communication with train_worker (receives new weights)
+            env_eval_child_conn,  # communication with eval_worker
+            env_main_child_conn,  # NEW: Stop signal from main
             replay_proxy, 
             stop_flag, 
             "Reacher_Linux/Reacher.x86_64", 
@@ -128,7 +133,9 @@ if __name__ == '__main__':
     eval_process = mp.Process(
         target=eval_worker,
         args=(
-            eval_child_conn, 
+            eval_train_child_conn, # communication with train_worker
+            env_eval_parent_conn, # communication with env_worker
+            eval_main_child_conn, # NEW: Stop signal from main
             stop_flag, 
             "Reacher_Linux/Reacher.x86_64", 
             30.0, 
@@ -146,10 +153,10 @@ if __name__ == '__main__':
     print("Waiting for ready signals from environment and evaluation workers...")
 
     # Wait for both workers to signal readiness (blocking call)
-    ready_env = env_parent_conn.recv()
+    ready_env = env_main_parent_conn.recv()
     print(f"[Main] Received ready signal from env_worker: {ready_env}")
     
-    ready_eval = eval_parent_conn.recv()
+    ready_eval = eval_main_parent_conn.recv()
     print(f"[Main] Received ready signal from eval_worker: {ready_eval}")
 
     # Create training process
@@ -158,8 +165,8 @@ if __name__ == '__main__':
         args=(
             replay_proxy, 
             stop_flag, 
-            env_parent_conn, # train acts as a coordinator so it needs to communicate with env and eval
-            eval_parent_conn, 
+            env_train_parent_conn, # train acts as a coordinator so it needs to communicate with env and eval
+            eval_train_parent_conn, 
             gamma, 
             lr_actor, 
             lr_critic,
@@ -181,9 +188,9 @@ if __name__ == '__main__':
         # If Ctrl+C is detected, gracefully shut down
         print("\n[Training] Ctrl+C detected! Stopping training...")
         shutdown_properly(
-            env_process, eval_process, train_process, replay_process, stop_flag, env_parent_conn, eval_parent_conn)
+            env_process, eval_process, train_process, replay_process, stop_flag, env_train_parent_conn, eval_train_parent_conn)
 
     finally:
         # Ensure cleanup even if an exception occurs
         shutdown_properly(
-            env_process, eval_process, train_process, replay_process, stop_flag, env_parent_conn, eval_parent_conn)
+            env_process, eval_process, train_process, replay_process, stop_flag, env_train_parent_conn, eval_train_parent_conn)

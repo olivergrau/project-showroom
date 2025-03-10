@@ -4,7 +4,7 @@ import numpy as np
 import os
 from torch.utils.tensorboard import SummaryWriter
 import signal
-from codebase.ddpg.agent import DDPGAgent  # Updated import for DDPG
+from codebase.td3.agent import TD3Agent
 
 DEBUG = False
 LOG_FREQ = 100  # Log every 100 iterations to TensorBoard
@@ -19,11 +19,10 @@ def train_worker(
         lr_critic=5e-3, 
         upd_w_frequency=10,  
         use_reward_normalization=False,
-        use_ou_noise=False,
         log_dir=None):
     """
     A training process that:
-      1) Instantiates a DDPGAgent to learn from replay buffer samples.
+      1) Instantiates a TD3Agent to learn from replay buffer samples.
       2) Periodically updates the environment worker with new policy weights.
       3) Periodically updates the evaluation worker with new policy weights and requests an evaluation.
       4) Stops if the evaluation worker signals the environment is solved, or if stop_flag is set externally.
@@ -41,14 +40,13 @@ def train_worker(
     train_writer = SummaryWriter(log_dir=train_log_dir)
 
     # 1) Instantiate the DDPGAgent
-    agent = DDPGAgent(
+    agent = TD3Agent(
         state_size=33, 
         action_size=4, 
         gamma=gamma, 
         lr_critic=lr_critic, 
         lr_actor=lr_actor, 
-        use_reward_normalization=use_reward_normalization,
-        use_ou_noise=use_ou_noise,
+        use_reward_normalization=use_reward_normalization,        
         label="TrainWorker")
     
     # Allow some time for the environment worker to start and populate the replay buffer
@@ -79,6 +77,7 @@ def train_worker(
                 train_writer.add_scalar("Sampling/AverageTime", avg_sampling_time, iteration)
                 if DEBUG:
                     print(f"[TrainWorker] Average sampling time over last {LOG_FREQ} iterations: {avg_sampling_time:.4f} seconds")
+                
                 sample_times = []  # Reset list
 
             if DEBUG:    
@@ -112,26 +111,72 @@ def train_worker(
         # Log training metrics only every LOG_FREQ iterations
         if iteration % LOG_FREQ == 0:
             train_writer.add_scalar("Loss/Critic", metrics["critic_loss"], iteration)
+            train_writer.add_scalar("Loss/Critic1", metrics["critic1_loss"], iteration)
+            train_writer.add_scalar("Loss/Critic2", metrics["critic2_loss"], iteration)
+
             if metrics["actor_loss"] is not None:
                 train_writer.add_scalar("Loss/Actor", metrics["actor_loss"], iteration)
-            train_writer.add_scalar("Q-values/Mean_Q", metrics["current_Q_mean"], iteration)
+            
+            train_writer.add_scalar("Q-values/Mean_Q1", metrics["current_Q1_mean"], iteration)
+            train_writer.add_scalar("Q-values/Mean_Q2", metrics["current_Q2_mean"], iteration)
             train_writer.add_scalar("Target_Q_Mean", metrics["target_Q_mean"], iteration)
-        
-        # Update the evaluation and environment workers at the specified frequency
+            
+        # 4) Synchronous weight update: Broadcast weights and wait for acks
         if iteration % upd_w_frequency == 0:
             new_weights = extract_agent_weights(agent)
+            
             if DEBUG:
                 for name, sd in new_weights.items():
                     for key, tensor in sd.items():
                         norm = torch.norm(tensor).item()
                         print(f"[TrainWorker] {name} - {key} norm: {norm:.4f}")
-                print(f"[TrainWorker] Sending weights to eval_worker: {iteration}")
-            eval_conn.send({"command": "update_weights", "weights": new_weights})
+                
+                print(f"[TrainWorker] Broadcasting weights at iteration {iteration}")
             
-            if DEBUG:
-                print(f"[TrainWorker] Sending weights to env_worker: {iteration}")
+            # Send update command to both workers
+            eval_conn.send({"command": "update_weights", "weights": new_weights})
             env_conn.send({"command": "update_weights", "weights": new_weights})
+            
+            # Wait for environment worker ack with a longer timeout
+            env_ack_timeout = 2.0  # seconds
+            start_wait = time.time()
+            
+            env_ack_received = False
+            while not env_ack_received and (time.time() - start_wait < env_ack_timeout):
+                if env_conn.poll(0.01):
+                    msg = env_conn.recv()
+                    
+                    if isinstance(msg, dict) and msg.get("command") == "ack_update" and msg.get("worker") == "env":
+                        env_ack_received = True
+                        
+                        if DEBUG:
+                            print("[TrainWorker] Received ack from env_worker.")
+                
+                time.sleep(0.005)
+            
+            if not env_ack_received:
+                print("[TrainWorker] Warning: Env worker did not ack in time.")
+            
+            # Wait for evaluation worker ack, but only briefly
+            eval_ack_timeout = 1.0  # seconds
+            start_wait_eval = time.time()
 
+            eval_ack_received = False
+            while not eval_ack_received and (time.time() - start_wait_eval < eval_ack_timeout):
+                if eval_conn.poll(0.01):
+                    msg = eval_conn.recv()
+                    
+                    if isinstance(msg, dict) and msg.get("command") == "ack_update" and msg.get("worker") == "eval":
+                        eval_ack_received = True
+                        
+                        if DEBUG:
+                            print("[TrainWorker] Received ack from eval_worker.")
+                
+                time.sleep(0.005)
+            
+            if not eval_ack_received:
+                print("[TrainWorker] Warning: Eval worker did not ack in time, proceeding without its ack.")
+        
         # Non-blocking check for "solved" message from eval_worker
         while eval_conn.poll():
             msg = eval_conn.recv()
@@ -175,9 +220,6 @@ def train_worker(
                     print(f"[TrainWorker] Updates/sec: {iterations_per_second:.2f} (no env step rate received)")
             
             start_time = now
-        
-        # Optionally, remove any sleep here to avoid additional delays.
-        # time.sleep(0.01)
 
     print("[TrainWorker] Training loop ended, signaling shutdown...")
 
@@ -185,6 +227,8 @@ def extract_agent_weights(agent):
     return {
         "actor": {k: v.cpu() for k, v in agent.actor.state_dict().items()},
         "actor_target": {k: v.cpu() for k, v in agent.actor_target.state_dict().items()},
-        "critic": {k: v.cpu() for k, v in agent.critic.state_dict().items()},
-        "critic_target": {k: v.cpu() for k, v in agent.critic_target.state_dict().items()},
+        "critic1": {k: v.cpu() for k, v in agent.critic1.state_dict().items()},
+        "critic1_target": {k: v.cpu() for k, v in agent.critic1_target.state_dict().items()},
+        "critic2": {k: v.cpu() for k, v in agent.critic2.state_dict().items()},
+        "critic2_target": {k: v.cpu() for k, v in agent.critic2_target.state_dict().items()},
     }

@@ -1,4 +1,5 @@
 import os
+import threading
 import time
 import numpy as np
 import torch
@@ -6,28 +7,49 @@ import signal
 from unityagents import UnityEnvironment
 from torch.utils.tensorboard import SummaryWriter
 
-from codebase.ddpg.agent import DDPGAgent
-from codebase.utils.normalizer import RunningNormalizer  # Import your RunningNormalizer
+from codebase.td3.agent import TD3Agent
+from codebase.utils.normalizer import RunningNormalizer 
 
 DEBUG = False
 LOG_FREQ = 10  # Log TensorBoard metrics every LOG_FREQ episodes
 
+def weight_update_listener(train_conn, agent, stop_flag):
+    """
+    Dedicated listener thread that continuously checks for weight update messages.
+    When a weight update is received, it loads the new weights into the agent
+    and sends an immediate ack.
+    """
+    while not stop_flag.is_set():
+        if train_conn.poll(0.001):
+            message = train_conn.recv()
+            if isinstance(message, dict) and message.get("command") == "update_weights":
+                load_agent_weights(agent, message["weights"])
+                
+                # Immediately send an acknowledgment
+                train_conn.send({"command": "ack_update", "worker": "eval"})
+                
+                if DEBUG:
+                    print("[EvalWorker-Listener] Weight update received, updated agent weights, and sent ack.")
+        
+        time.sleep(0.001)
+
 def eval_worker(
-    eval_conn,
+    train_conn,
+    env_conn,
+    main_conn,
     stop_flag,
     unity_exe_path="Reacher_Linux/Reacher.x86_64",
     reward_threshold=30.0,
     gamma=0.99,
     lr_actor=5e-3,
     lr_critic=5e-3,
-    reward_scaling_factor=10.0,
+    reward_scaling_factor=1.0,
     log_dir=None,
     window_size=100
 ):
     # Ignore SIGINT in this worker
     signal.signal(signal.SIGINT, signal.SIG_IGN)
-    
-    
+        
     print(f"EvalWorker: reward_threshold={reward_threshold}, gamma={gamma}, lr_actor={lr_actor}, lr_critic={lr_critic}, reward_scaling_factor={reward_scaling_factor}, window_size={window_size}")
     print("[EvalWorker] Starting evaluation worker...")
 
@@ -58,10 +80,10 @@ def eval_worker(
         raise RuntimeError("[EvalWorker] Failed to reset Unity environment after maximum retries.")
     
     # Signal readiness
-    eval_conn.send({"command": "ready", "worker": "eval"})
+    main_conn.send({"command": "ready", "worker": "eval"})
 
     # Instantiate the agent
-    agent = DDPGAgent(
+    agent = TD3Agent(
         state_size=33, action_size=4, gamma=gamma, lr_actor=lr_actor, lr_critic=lr_critic, label="EvalWorker")
     
     # Create a local RunningNormalizer instance (assume state dimension 33)
@@ -70,28 +92,34 @@ def eval_worker(
     episode_rewards = []  # For sliding window average
     episode_count = 0
 
+    # Start the dedicated listener thread for weight updates
+    listener_thread = threading.Thread(target=weight_update_listener, args=(train_conn, agent, stop_flag))
+    listener_thread.daemon = True
+    listener_thread.start()
+
     try:
         while not stop_flag.is_set():
-            # Process any pending messages (non-blocking)
-            while eval_conn.poll():
-                message = eval_conn.recv()
-                if isinstance(message, dict):
-                    if message.get("command") == "update_weights":
-                        load_agent_weights(agent, message["weights"])
-                        if DEBUG:
-                            print("[EvalWorker] Updated agent weights.")
-                    elif message.get("command") == "update_normalizer":
+            # Process normalization updates from env worker
+            while env_conn.poll(0.001):
+                message = env_conn.recv()
+                if isinstance(message, dict):                          
+                    if message.get("command") == "update_normalizer":
                         norm_params = message.get("normalizer")
+                        
                         # Update the local normalizer parameters
                         state_normalizer.mean = np.array(norm_params["mean"], dtype=np.float32)
                         state_normalizer.var = np.array(norm_params["var"], dtype=np.float32)
                         state_normalizer.count = norm_params["count"]
                         
-                        print("[EvalWorker] Updated normalizer parameters.")
-                    elif message.get("command") == "stop":                        
-                        print("[EvalWorker] Received stop command.")
-                        stop_flag.set()
-                        break
+                        if DEBUG:
+                            print("[EvalWorker] Updated normalizer parameters.")
+            
+            if main_conn.poll():
+                message = main_conn.recv()
+                if isinstance(message, dict) and message.get("command") == "stop":
+                    print("[EvalWorker] Received stop command from main process.")
+                    stop_flag.set()
+                    break        
 
             # Evaluate one episode (states will be normalized using the local normalizer)
             ep_reward = evaluate_one_episode(env, brain_name, agent, reward_scaling_factor, state_normalizer)
@@ -112,9 +140,9 @@ def eval_worker(
                 eval_writer.add_scalar("Eval/Recent_Avg_Reward", recent_avg, episode_count)
                                 
                 if len(episode_rewards) >= window_size:
-                    print(f"[EvalWorker] Recent average (last {window_size} episodes): {recent_avg:.2f}")
+                    print(f"[EvalWorker] Recent average (last {window_size} episodes): {recent_avg:.2f}, unscaled: {recent_avg / reward_scaling_factor:.2f}")
                 else:
-                    print(f"[EvalWorker] Current average (over {episode_count} episodes): {recent_avg:.2f}")
+                    print(f"[EvalWorker] Current average (over {episode_count} episodes): {recent_avg:.2f}, unscaled: {recent_avg / reward_scaling_factor:.2f}")
             
                 # Log state_normalizer statistics
                 eval_writer.add_scalar("Normalizer/Mean_Avg", np.mean(state_normalizer.mean), episode_count)
@@ -126,7 +154,7 @@ def eval_worker(
                 if recent_avg >= reward_threshold:                    
                     print("[EvalWorker] Environment solved! Sending stop signal to train_worker.")
                     stop_flag.set()
-                    eval_conn.send({"command": "solved", "avg_reward": recent_avg})
+                    train_conn.send({"command": "solved", "avg_reward": recent_avg})
     finally:
         env.close()
         eval_writer.close()        
@@ -163,42 +191,55 @@ def evaluate_one_episode(env, brain_name, agent, reward_scaling_factor, state_no
 def load_agent_weights(agent, new_weights):
     """
     Helper function to load new weights into the evaluation worker's agent.
-    Checks each network's state dict for consistency before loading the weights.
+    Checks each network's state dict for consistency (e.g., no NaN values and not entirely zero)
+    before loading the weights.
     """
     def check_state_dict_consistency(state_dict, module_name):
         for key, param in state_dict.items():
             if torch.isnan(param).any():
-                if DEBUG:
-                    print(f"[EvalWorker] Warning: {module_name} weight '{key}' contains NaN values!")
+                print(f"[EvalWorker] Warning: {module_name} weight '{key}' contains NaN values!")
+            
             if torch.sum(torch.abs(param)) == 0:
-                if DEBUG:
-                    print(f"[EvalWorker] Warning: {module_name} weight '{key}' is entirely zero!")
+                print(f"[EvalWorker] Warning: {module_name} weight '{key}' is entirely zero!")
 
+    # Check and load actor weights
     if "actor" in new_weights:
         check_state_dict_consistency(new_weights["actor"], "Actor")
         old_weights = agent.actor.state_dict()
         agent.actor.load_state_dict(new_weights["actor"])
-        for key in old_weights.keys():
-            old_norm = torch.norm(old_weights[key])
-            new_norm = torch.norm(new_weights["actor"][key])
-            if DEBUG:
+        
+        # Debug: Compare norms of each parameter before and after update
+        if DEBUG:
+            for key in old_weights.keys():
+                old_norm = torch.norm(old_weights[key])
+                new_norm = torch.norm(new_weights["actor"][key])
                 print(f"[EvalWorker] Actor '{key}': old norm = {old_norm.item():.4f}, new norm = {new_norm.item():.4f}")
                 if not torch.equal(old_weights[key].cpu(), new_weights["actor"][key]):
                     print(f"[EvalWorker] Actor weight updated: {key}")
     else:
         print("[EvalWorker] No actor weights found in the provided weights dictionary.")
         
+    # Check and load actor_target weights
     if "actor_target" in new_weights:
         check_state_dict_consistency(new_weights["actor_target"], "Actor Target")
         agent.actor_target.load_state_dict(new_weights["actor_target"])
         
-    if "critic" in new_weights:
-        check_state_dict_consistency(new_weights["critic"], "Critic")
-        agent.critic.load_state_dict(new_weights["critic"])
+    # Check and load critic1 weights
+    if "critic1" in new_weights:
+        check_state_dict_consistency(new_weights["critic1"], "Critic1")
+        agent.critic1.load_state_dict(new_weights["critic1"])
         
-    if "critic_target" in new_weights:
-        check_state_dict_consistency(new_weights["critic_target"], "Critic Target")
-        agent.critic_target.load_state_dict(new_weights["critic_target"])
-
-    if DEBUG:
-        print("[EvalWorker] Successfully loaded new agent weights.")
+    # Check and load critic1_target weights
+    if "critic1_target" in new_weights:
+        check_state_dict_consistency(new_weights["critic1_target"], "Critic1 Target")
+        agent.critic1_target.load_state_dict(new_weights["critic1_target"])
+        
+    # Check and load critic2 weights
+    if "critic2" in new_weights:
+        check_state_dict_consistency(new_weights["critic2"], "Critic2")
+        agent.critic2.load_state_dict(new_weights["critic2"])
+        
+    # Check and load critic2_target weights
+    if "critic2_target" in new_weights:
+        check_state_dict_consistency(new_weights["critic2_target"], "Critic2 Target")
+        agent.critic2_target.load_state_dict(new_weights["critic2_target"])
