@@ -57,8 +57,6 @@ def shutdown_properly(env_process, eval_process, train_process, replay_process, 
     print("All processes terminated.")
     print("Training ended.")
 
-# ToDo: Fix TD3 and SAC variants and try them with the fixes found for DDPG.
-
 if __name__ == '__main__':
     mp.set_start_method('spawn', force=True)
     stop_flag = mp.Event()
@@ -66,15 +64,19 @@ if __name__ == '__main__':
     # Hyperparameters
     gamma = 0.99
     batch_size = 256
-    lr_actor = 1e-3
+    lr_actor = 1e-4
     lr_critic = 1e-4
-    upd_w_frequency = 1 # number of iterations / batches before updating the weights for the workers
+    upd_w_frequency = 2 # number of iterations / batches before updating the weights for the workers
     use_ou_noise = True
     exploration_start_noise = 0.2
     exploration_noise_decay = 0.9999
     reward_scaling_factor = 1.0
     use_reward_normalization = False
-    throttle_env_by = 0.0  # 0.0 means no throttling (increase throttle to lower update rate)
+    use_state_norm = False
+
+    # Throttling: Crucial for training stability (especially in multi-worker setups)
+    throttle_steps_by = 0.03  # 0.0 means no throttling (increase throttle to lower steps per second)
+    throttle_trainings_by = 0.08  # 0.0 means no throttling (increase throttle to lower training iterations per second)
 
     # Communication between env_worker and train_worker
     env_train_parent_conn, env_train_child_conn = mp.Pipe()
@@ -123,8 +125,9 @@ if __name__ == '__main__':
             exploration_start_noise,            
             exploration_noise_decay,
             reward_scaling_factor,
-            throttle_env_by,
+            throttle_steps_by,
             use_ou_noise,
+            use_state_norm,
             log_dir
         )
     )
@@ -143,6 +146,7 @@ if __name__ == '__main__':
             lr_actor, 
             lr_critic,
             reward_scaling_factor,
+            use_state_norm,
             log_dir, 100)
     )
 
@@ -172,7 +176,9 @@ if __name__ == '__main__':
             lr_critic,
             upd_w_frequency, 
             use_reward_normalization,
-            use_ou_noise,       
+            use_ou_noise,  
+            use_state_norm,   
+            throttle_trainings_by,  
             log_dir
         )  # Pass the parent conns so training can send messages
     )

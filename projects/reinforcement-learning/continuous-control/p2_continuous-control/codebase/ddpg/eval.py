@@ -8,28 +8,48 @@ from unityagents import UnityEnvironment
 from torch.utils.tensorboard import SummaryWriter
 
 from codebase.ddpg.agent import DDPGAgent
-from codebase.utils.normalizer import RunningNormalizer  # Import your RunningNormalizer
+from codebase.utils.normalizer import RunningNormalizer
 
 DEBUG = False
 LOG_FREQ = 10  # Log TensorBoard metrics every LOG_FREQ episodes
 
-def weight_update_listener(train_conn, agent, stop_flag):
+def message_listener(train_conn, state_normalizer, agent, stop_flag):
     """
-    Dedicated listener thread that continuously checks for weight update messages.
-    When a weight update is received, it loads the new weights into the agent
-    and sends an immediate ack.
+    Unified listener thread for the eval worker that continuously checks for messages 
+    from the train worker. It handles both normalizer updates and weight updates.
     """
     while not stop_flag.is_set():
-        if train_conn.poll(0.001):
-            message = train_conn.recv()
-            if isinstance(message, dict) and message.get("command") == "update_weights":
-                load_agent_weights(agent, message["weights"])
-                
-                # Immediately send an acknowledgment
-                train_conn.send({"command": "ack_update", "worker": "eval"})
-                
-                if DEBUG:
-                    print("[EvalWorker-Listener] Weight update received, updated agent weights, and sent ack.")
+        try:
+            if train_conn.poll(0.001):
+                message = train_conn.recv()
+                if isinstance(message, dict):
+                    command = message.get("command")
+                    if state_normalizer is not None and command == "update_normalizer":
+                        norm_params = message.get("normalizer")
+                        
+                        # Update the local normalizer parameters
+                        state_normalizer.mean = np.array(norm_params["mean"], dtype=np.float32)
+                        state_normalizer.var = np.array(norm_params["var"], dtype=np.float32)
+                        state_normalizer.count = norm_params["count"]
+                        
+                        if DEBUG:
+                            print("[EvalWorker] Updated normalizer parameters.")
+                    
+                    elif command == "update_weights":
+                        new_weights = message.get("weights")
+                        load_agent_weights(agent, new_weights)
+                        
+                        # Send acknowledgment back to the train worker
+                        train_conn.send({"command": "ack_update", "worker": "eval"})
+                        if DEBUG:
+                            print("[EvalWorker] Updated agent weights and sent ack.")
+                    
+                    elif command == "stop":
+                        stop_flag.set()
+                        break
+        except EOFError:
+            print("[EvalWorker] Message listener: EOFError occurred. Exiting.")
+            break
         
         time.sleep(0.001)
 
@@ -44,6 +64,7 @@ def eval_worker(
     lr_actor=5e-3,
     lr_critic=5e-3,
     reward_scaling_factor=1.0,
+    use_state_norm = False,
     log_dir=None,
     window_size=100
 ):
@@ -86,33 +107,21 @@ def eval_worker(
         state_size=33, action_size=4, gamma=gamma, lr_actor=lr_actor, lr_critic=lr_critic, label="EvalWorker")
     
     # Create a local RunningNormalizer instance (assume state dimension 33)
-    state_normalizer = RunningNormalizer(shape=(33,), momentum=0.001)
-    
+    if use_state_norm:
+        state_normalizer = RunningNormalizer(shape=(33,), momentum=0.001)
+    else:
+        state_normalizer = None
+        
     episode_rewards = []  # For sliding window average
     episode_count = 0
 
-    # Start the dedicated listener thread for weight updates
-    listener_thread = threading.Thread(target=weight_update_listener, args=(train_conn, agent, stop_flag))
+    # Start the unified listener thread for messages from train worker.
+    listener_thread = threading.Thread(target=message_listener, args=(train_conn, state_normalizer, agent, stop_flag))
     listener_thread.daemon = True
     listener_thread.start()
 
     try:
         while not stop_flag.is_set():
-            # Process normalization updates from env worker
-            while env_conn.poll(0.001):
-                message = env_conn.recv()
-                if isinstance(message, dict):                          
-                    if message.get("command") == "update_normalizer":
-                        norm_params = message.get("normalizer")
-                        
-                        # Update the local normalizer parameters
-                        state_normalizer.mean = np.array(norm_params["mean"], dtype=np.float32)
-                        state_normalizer.var = np.array(norm_params["var"], dtype=np.float32)
-                        state_normalizer.count = norm_params["count"]
-                        
-                        if DEBUG:
-                            print("[EvalWorker] Updated normalizer parameters.")
-            
             if main_conn.poll():
                 message = main_conn.recv()
                 if isinstance(message, dict) and message.get("command") == "stop":
@@ -120,7 +129,7 @@ def eval_worker(
                     stop_flag.set()
                     break        
 
-            # Evaluate one episode (states will be normalized using the local normalizer)
+            # Evaluate one episode
             ep_reward = evaluate_one_episode(env, brain_name, agent, reward_scaling_factor, state_normalizer)
             episode_count += 1
             episode_rewards.append(ep_reward)
@@ -130,7 +139,7 @@ def eval_worker(
             if DEBUG:
                 print(f"[EvalWorker] Episode {episode_count}: Reward = {ep_reward:.2f}")
 
-            # Compute and log moving average reward only every LOG_FREQ episodes
+            # Compute and log moving average reward every LOG_FREQ episodes
             if episode_count % LOG_FREQ == 0:
                 if len(episode_rewards) >= window_size:
                     recent_avg = np.mean(episode_rewards[-window_size:])
@@ -144,10 +153,11 @@ def eval_worker(
                     print(f"[EvalWorker] Current average (over {episode_count} episodes): {recent_avg:.2f}, unscaled: {recent_avg / reward_scaling_factor:.2f}")
             
                 # Log state_normalizer statistics
-                eval_writer.add_scalar("Normalizer/Mean_Avg", np.mean(state_normalizer.mean), episode_count)
-                eval_writer.add_scalar("Normalizer/Var_Avg", np.mean(state_normalizer.var), episode_count)
-                eval_writer.add_scalar("Normalizer/Count", state_normalizer.count, episode_count)
-                
+                if use_state_norm:
+                    eval_writer.add_scalar("Normalizer/Mean_Avg", np.mean(state_normalizer.mean), episode_count)
+                    eval_writer.add_scalar("Normalizer/Var_Avg", np.mean(state_normalizer.var), episode_count)
+                    eval_writer.add_scalar("Normalizer/Count", state_normalizer.count, episode_count)
+                    
                 # Check if solved and send stop signal if needed
                 reward_threshold_scaled = 30.0 * reward_scaling_factor
                 if recent_avg >= reward_threshold_scaled:                    
@@ -167,8 +177,9 @@ def evaluate_one_episode(env, brain_name, agent, reward_scaling_factor, state_no
     env_info = env.reset(train_mode=True)[brain_name]
     raw_states = env_info.vector_observations  # raw state from environment
     
-    # Normalize the initial state using the current normalizer
-    states = state_normalizer.normalize(raw_states)
+    # Normalize the initial state using the current normalizer    
+    states = state_normalizer.normalize(raw_states) if state_normalizer is not None else raw_states
+    
     num_agents = len(env_info.agents)
     done = [False] * num_agents
     total_rewards = np.zeros(num_agents)
@@ -178,10 +189,11 @@ def evaluate_one_episode(env, brain_name, agent, reward_scaling_factor, state_no
         env_info = env.step(actions)[brain_name]
         rewards = env_info.rewards
         done = env_info.local_done
-        raw_states = env_info.vector_observations
+        next_states = env_info.vector_observations
         
         # Normalize the new state
-        states = state_normalizer.normalize(raw_states)
+        states = state_normalizer.normalize(next_states) if state_normalizer is not None else next_states
+
         scaled_rewards = [r * reward_scaling_factor for r in rewards]
         total_rewards += np.array(scaled_rewards)
     

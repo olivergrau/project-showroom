@@ -5,6 +5,7 @@ import os
 from torch.utils.tensorboard import SummaryWriter
 import signal
 from codebase.ddpg.agent import DDPGAgent  # Updated import for DDPG
+from codebase.utils.normalizer import RunningNormalizer  # your RunningNormalizer class
 
 DEBUG = False
 LOG_FREQ = 100  # Log every 100 iterations to TensorBoard
@@ -20,6 +21,8 @@ def train_worker(
         upd_w_frequency=10,  
         use_reward_normalization=False,
         use_ou_noise=False,
+        use_state_norm=False,
+        throttle_by=0.0,
         log_dir=None):
     """
     A training process that:
@@ -60,6 +63,14 @@ def train_worker(
     start_time = time.time()    
     sample_times = []  # List to accumulate sampling times
 
+    # Instantiate RunningNormalizer (assume state dimension is 33)
+    if use_state_norm:
+        state_normalizer = RunningNormalizer(shape=(33,), momentum=0.001)
+
+    # Variables for reporting iterations per second every 30 seconds.
+    last_report_time = time.time()
+    last_report_iterations = 0
+
     # Main training loop
     while not stop_flag.is_set():
         iteration += 1        
@@ -76,8 +87,10 @@ def train_worker(
             if iteration % LOG_FREQ == 0:
                 avg_sampling_time = sum(sample_times) / len(sample_times)
                 train_writer.add_scalar("Sampling/AverageTime", avg_sampling_time, iteration)
+                
                 if DEBUG:
                     print(f"[TrainWorker] Average sampling time over last {LOG_FREQ} iterations: {avg_sampling_time:.4f} seconds")
+                
                 sample_times = []  # Reset list
 
             if DEBUG:    
@@ -104,12 +117,37 @@ def train_worker(
             else:
                 break
         
+        # Update the state normalizer with the new batch of states
+        if use_state_norm:
+            state_normalizer.update(transitions.state)
+
+        # Normalize the states in the transitions
+        if use_state_norm:
+            transitions = transitions._replace(
+                state=state_normalizer.normalize(transitions.state),
+                next_state=state_normalizer.normalize(transitions.next_state)
+            )
+
         # 3) Perform a learning step with the DDPG agent
         metrics = agent.learn(transitions)
         
         if DEBUG:
             print(f"[TrainWorker] Completed training iteration {iteration}")
         
+        # Periodically send updated normalizer parameters to other workers.
+        if use_state_norm and iteration % 10 == 0:
+            norm_params = {
+                "mean": state_normalizer.mean.tolist(),
+                "var": state_normalizer.var.tolist(),
+                "count": state_normalizer.count
+            }
+
+            env_conn.send({"command": "update_normalizer", "normalizer": norm_params})
+            eval_conn.send({"command": "update_normalizer", "normalizer": norm_params})
+
+            if DEBUG:
+                print("[TrainWorker] Sent updated normalizer parameters to eval_worker.")
+                
         # Log training metrics every LOG_FREQ iterations
         if iteration % LOG_FREQ == 0:
             train_writer.add_scalar("Loss/Critic", metrics["critic_loss"], iteration)
@@ -137,7 +175,7 @@ def train_worker(
             env_conn.send({"command": "update_weights", "weights": new_weights})
             
             # Wait for environment worker ack with a longer timeout
-            env_ack_timeout = 2.0  # seconds
+            env_ack_timeout = 1.0  # seconds
             start_wait = time.time()
             
             env_ack_received = False
@@ -192,10 +230,10 @@ def train_worker(
                 time.sleep(1)
         
         # Log update rate and env step rate every LOG_FREQ iterations
-        if iteration % LOG_FREQ == 0:
+        if iteration % 10 == 0:
             now = time.time()
             elapsed = now - start_time
-            iterations_per_second = LOG_FREQ / elapsed  # Training updates per second
+            iterations_per_second = 10 / elapsed  # Training updates per second
             
             current_env_steps_per_sec = None
             while env_conn.poll():
@@ -206,6 +244,7 @@ def train_worker(
             if current_env_steps_per_sec is not None:
                 ratio = iterations_per_second / current_env_steps_per_sec
                 steps_per_update = current_env_steps_per_sec / iterations_per_second
+
                 train_writer.add_scalar("Rates/UpdatesPerSec", iterations_per_second, iteration)
                 train_writer.add_scalar("Rates/EnvStepsPerSec", current_env_steps_per_sec, iteration)
                 train_writer.add_scalar("Rates/Ratio", ratio, iteration)
@@ -217,6 +256,18 @@ def train_worker(
                     print(f"[TrainWorker] Updates/sec: {iterations_per_second:.2f} (no env step rate received)")
             
             start_time = now
+        
+        # --- Report iterations per second every 30 seconds ---
+        current_time = time.time()
+        if current_time - last_report_time >= 30:
+            iterations_in_interval = iteration - last_report_iterations
+            iterations_per_sec = iterations_in_interval / (current_time - last_report_time)
+            print(f"[TrainWorker] Iterations per second: {iterations_per_sec:.2f}")
+            last_report_time = current_time
+            last_report_iterations = iteration
+        
+        if throttle_by > 0:
+            time.sleep(throttle_by)
 
     print("[TrainWorker] Training loop ended, signaling shutdown...")
 

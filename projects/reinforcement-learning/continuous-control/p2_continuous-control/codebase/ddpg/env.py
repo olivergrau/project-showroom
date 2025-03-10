@@ -1,17 +1,57 @@
-# env_worker.py
 import os
 import signal
+import threading
 import time
 import torch
 from unityagents import UnityEnvironment
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
-import torch
 from codebase.ddpg.agent import DDPGAgent
-from codebase.utils.normalizer import RunningNormalizer  # your RunningNormalizer class
+from codebase.utils.normalizer import RunningNormalizer
 
 DEBUG = False
 LOG_FREQ = 100  # Log TensorBoard metrics every LOG_FREQ steps
+
+def message_listener(train_conn, state_normalizer, agent, stop_flag):
+    """
+    Dedicated listener thread that continuously checks for messages from the train worker.
+    It handles both normalizer updates and weight update messages.
+    """
+    while not stop_flag.is_set():
+        try:
+            if train_conn.poll(0.001):
+                message = train_conn.recv()
+                if isinstance(message, dict):
+                    command = message.get("command")
+                    if state_normalizer is not None and command == "update_normalizer":
+                        norm_params = message.get("normalizer")
+
+                        # Update the local normalizer parameters
+                        state_normalizer.mean = np.array(norm_params["mean"], dtype=np.float32)
+                        state_normalizer.var = np.array(norm_params["var"], dtype=np.float32)
+                        state_normalizer.count = norm_params["count"]
+                        
+                        if DEBUG:
+                            print("[EnvWorker] Updated normalizer parameters.")
+
+                    elif command == "update_weights":
+                        new_weights = message.get("weights")
+                        load_agent_weights(agent, new_weights)
+                        
+                        # Send acknowledgment back to the train worker
+                        train_conn.send({"command": "ack_update", "worker": "env"})
+                        
+                        if DEBUG:
+                            print("[EnvWorker] Updated agent weights and sent ack.")
+                    
+                    elif command == "stop":
+                        stop_flag.set()
+                        break
+        except EOFError:
+            print("[EnvWorker] Message listener: EOFError occurred. Exiting.")
+            break
+        
+        time.sleep(0.001)
 
 def env_worker(
         train_conn,
@@ -26,15 +66,16 @@ def env_worker(
         exploration_noise=0.15,
         exploration_noise_decay=0.9999,
         reward_scaling_factor=10.0,
-        throttle_env_by=0.0,
+        throttle_by=0.0,
         use_ou_noise=False,
+        use_state_norm=False,
         log_dir=None):
     """
     Environment process:
       - Interacts with the Unity environment.
       - Uses a RunningNormalizer to update and normalize state observations.
-      - Feeds normalized transitions into the replay buffer.
-      - Sends updated normalizer parameters periodically so that other workers can remain in sync.
+      - Feeds raw transitions into the replay buffer.
+      - Receives update messages from the train worker via a dedicated listener thread.
     """
     signal.signal(signal.SIGINT, signal.SIG_IGN)
     print(f"EnvWorker: gamma={gamma}, lr_actor={lr_actor}, lr_critic={lr_critic}, exploration_noise={exploration_noise}, exploration_noise_decay={exploration_noise_decay}, reward_scaling_factor={reward_scaling_factor}")
@@ -80,38 +121,37 @@ def env_worker(
         use_ou_noise=use_ou_noise)
 
     # Instantiate RunningNormalizer (assume state dimension is 33)
-    state_normalizer = RunningNormalizer(shape=(33,), momentum=0.001)
-    
-    decay_interval = 2000
-    normalizer_update_interval = 2000  # update normalizer params every 2000 steps
+    if use_state_norm:
+        state_normalizer = RunningNormalizer(shape=(33,), momentum=0.001)
+    else:
+        state_normalizer = None
 
+    decay_interval = 2000    
     step_counter = 0
     episode_rewards = np.zeros(len(env_info.agents))  # one per agent
+
+    # Variables for reporting steps per minute every 30 seconds
+    last_report_time = time.time()
+    last_report_steps = 0
+
+    # Start the dedicated listener thread for messages from train worker.
+    listener_thread = threading.Thread(target=message_listener, args=(train_conn, state_normalizer, agent, stop_flag))
+    listener_thread.daemon = True
+    listener_thread.start()
 
     try:
         env_info = env.reset(train_mode=True)[brain_name]
         raw_states = env_info.vector_observations  # raw states from environment
         
-        # Update normalizer and normalize initial state.
-        state_normalizer.update(raw_states)
-        normalized_states = state_normalizer.normalize(raw_states)
+        # Normalize initial state for action selection.
+        if use_state_norm:
+            preprocessed_states = state_normalizer.normalize(raw_states)
+        else:
+            preprocessed_states = raw_states
 
         start_time = time.time()
         
-        while not stop_flag.is_set(): # a step
-            # Process incoming messages (e.g., weight updates, stop command)
-            if train_conn.poll(0.001):
-                message = train_conn.recv()
-                if isinstance(message, dict):
-                    if message.get("command") == "update_weights":
-                        new_weights = message["weights"]
-                        load_agent_weights(agent, new_weights)
-                        
-                        # Send acknowledgement for synchronous update
-                        train_conn.send({"command": "ack_update", "worker": "env"})
-                        if DEBUG:
-                            print("[EnvWorker] Updated agent weights and sent ack.")                                   
-            
+        while not stop_flag.is_set():
             if main_conn.poll():
                 message = main_conn.recv()
                 if isinstance(message, dict) and message.get("command") == "stop":
@@ -120,7 +160,7 @@ def env_worker(
                     break
 
             # Select actions using the normalized state.
-            actions = agent.act(normalized_states, noise=exploration_noise)
+            actions = agent.act(preprocessed_states, noise=exploration_noise)
             actions = np.clip(actions, -1, 1)
             
             # Step the environment.
@@ -134,23 +174,16 @@ def env_worker(
                 scaled_rewards = [r * reward_scaling_factor for r in rewards]
             else:
                 scaled_rewards = rewards
-
-            # Update normalizer with the new raw next states, then normalize.
-            state_normalizer.update(raw_next_states)
-            normalized_next_states = state_normalizer.normalize(raw_next_states)
             
             avg_step_reward = np.mean(scaled_rewards)
 
-            # Log step reward.
-            if step_counter % LOG_FREQ == 0:                
+            if step_counter % LOG_FREQ == 0:
                 env_writer.add_scalar("Env/Step_Mean_Reward", avg_step_reward, step_counter)
 
             step_counter += 1
             
-            # Accumulate rewards for each agent for episodic reward logging
+            # Accumulate rewards for episodic logging.
             episode_rewards += np.array(scaled_rewards)
-            
-            # Check and log episode completion per agent.
             done_mask = np.array(dones, dtype=bool)
             if done_mask.any():
                 for i, done in enumerate(done_mask):
@@ -158,62 +191,58 @@ def env_worker(
                         env_writer.add_scalar("Env/Episode_Reward", episode_rewards[i], step_counter)
                         episode_rewards[i] = 0.0
             
-            if step_counter % 1000 == 0 and agent.use_ou_noise == True:
+            if step_counter % 1000 == 0 and agent.use_ou_noise:
                 agent.reset_noise()
 
             if DEBUG and step_counter % LOG_FREQ == 0:
                 print(f"[EnvWorker] Step {step_counter}, Avg. Step Reward: {avg_step_reward:.6f}")
 
-            # Feed the normalized transition into the replay buffer. (one transition for data from 20 agents)
+            # Feed the raw transition into the replay buffer.
             replay_process.feed({
-                'state': normalized_states,
+                'state': raw_states,
                 'action': actions,
                 'reward': scaled_rewards,
-                'next_state': normalized_next_states,
+                'next_state': raw_next_states,
                 'mask': [0 if d else 1 for d in dones]
             })
             
             # Update current state.
-            normalized_states = normalized_next_states
+            raw_states = raw_next_states
+            
+            # Recompute normalized state for the next action selection.
+            if use_state_norm:
+                preprocessed_states = state_normalizer.normalize(raw_states)
+            else:
+                preprocessed_states = raw_states
 
-            # Decay exploration noise.
             if exploration_noise_decay is not None and step_counter % decay_interval == 0:
                 exploration_noise *= exploration_noise_decay
                 exploration_noise = max(exploration_noise, 0.01)
-
                 env_writer.add_scalar("Env/Exploration_Noise", exploration_noise, step_counter)
-                
                 if DEBUG and step_counter % 1000 == 0:
                     print(f"[EnvWorker] Exploration noise decayed to: {exploration_noise:.6f}")
             
-            # Periodically send updated normalizer parameters to other workers.
-            if step_counter % normalizer_update_interval == 0:
-                norm_params = {
-                    "mean": state_normalizer.mean.tolist(),
-                    "var": state_normalizer.var.tolist(),
-                    "count": state_normalizer.count
-                }
-                eval_conn.send({"command": "update_normalizer", "normalizer": norm_params})
-                
-                if DEBUG:
-                    print("[EnvWorker] Sent updated normalizer parameters to eval_worker.")
-            
-            # Optionally log every 10 steps:
-            if step_counter % 50 == 0:
+            # Report steps per minute every 30 seconds.
+            current_time = time.time()
+            if current_time - last_report_time >= 30:
+                steps_in_interval = step_counter - last_report_steps
+                steps_per_second = steps_in_interval / (current_time - last_report_time)
+                print(f"[EnvWorker] Steps per second: {steps_per_second:.2f}")
+                last_report_time = current_time
+                last_report_steps = step_counter
+
+            # Optionally log every 100 steps: send step rate to train worker.
+            if step_counter % 100 == 0:
                 now = time.time()
                 elapsed = now - start_time
-                steps_per_second = 50 / elapsed
-                
+                steps_per_second = 100 / elapsed
                 if DEBUG:
                     print(f"[EnvWorker] Steps per second: {steps_per_second:.2f}")
-
-                # Send the measurement to the train_worker:
                 train_conn.send({"command": "step_rate", "steps_per_sec": steps_per_second})
-
                 start_time = now
             
-            if throttle_env_by > 0:
-                time.sleep(throttle_env_by)
+            if throttle_by > 0:
+                time.sleep(throttle_by)
             
         print("[EnvWorker] Environment worker terminating...")
         print()
@@ -239,7 +268,6 @@ def load_agent_weights(agent, new_weights):
         check_state_dict_consistency(new_weights["actor"], "Actor")
         old_weights = agent.actor.state_dict()
         agent.actor.load_state_dict(new_weights["actor"])
-        
         if DEBUG:
             for key in old_weights.keys():
                 old_norm = torch.norm(old_weights[key])
@@ -261,6 +289,6 @@ def load_agent_weights(agent, new_weights):
     if "critic_target" in new_weights:
         check_state_dict_consistency(new_weights["critic_target"], "Critic Target")
         agent.critic_target.load_state_dict(new_weights["critic_target"])
-
+    
     if DEBUG:
         print("[EnvWorker] Successfully loaded new agent weights.")
