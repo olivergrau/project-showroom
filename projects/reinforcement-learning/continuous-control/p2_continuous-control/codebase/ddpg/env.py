@@ -126,7 +126,7 @@ def env_worker(
     else:
         state_normalizer = None
 
-    decay_interval = 2000    
+    noise_decay_interval = 2000    
     step_counter = 0
     episode_rewards = np.zeros(len(env_info.agents))  # one per agent
 
@@ -134,7 +134,7 @@ def env_worker(
     last_report_time = time.time()
     last_report_steps = 0
 
-    # Start the dedicated listener thread for messages from train worker.
+    # Start the dedicated listener thread for messages from train worker
     listener_thread = threading.Thread(target=message_listener, args=(train_conn, state_normalizer, agent, stop_flag))
     listener_thread.daemon = True
     listener_thread.start()
@@ -143,7 +143,7 @@ def env_worker(
         env_info = env.reset(train_mode=True)[brain_name]
         raw_states = env_info.vector_observations  # raw states from environment
         
-        # Normalize initial state for action selection.
+        # Normalize initial state for action selection
         if use_state_norm:
             preprocessed_states = state_normalizer.normalize(raw_states)
         else:
@@ -159,19 +159,19 @@ def env_worker(
                     stop_flag.set()
                     break
 
-            # Select actions using the normalized state.
+            # Select actions using the normalized state
             actions = agent.act(preprocessed_states, noise=exploration_noise)
             actions = np.clip(actions, -1, 1)
             
-            # Step the environment.
+            # Step the environment
             env_info = env.step(actions)[brain_name]
             raw_next_states = env_info.vector_observations  # raw next states
             rewards = env_info.rewards
             dones = env_info.local_done
             
-            # Scale rewards.
+            # Scale rewards
             if reward_scaling_factor is not None and reward_scaling_factor != 1.0:
-                scaled_rewards = [r * reward_scaling_factor for r in rewards]
+                scaled_rewards = np.asarray(rewards) * reward_scaling_factor
             else:
                 scaled_rewards = rewards
             
@@ -215,10 +215,11 @@ def env_worker(
             else:
                 preprocessed_states = raw_states
 
-            if exploration_noise_decay is not None and step_counter % decay_interval == 0:
+            if exploration_noise_decay is not None and step_counter % noise_decay_interval == 0:
                 exploration_noise *= exploration_noise_decay
                 exploration_noise = max(exploration_noise, 0.01)
                 env_writer.add_scalar("Env/Exploration_Noise", exploration_noise, step_counter)
+                
                 if DEBUG and step_counter % 1000 == 0:
                     print(f"[EnvWorker] Exploration noise decayed to: {exploration_noise:.6f}")
             
@@ -227,7 +228,9 @@ def env_worker(
             if current_time - last_report_time >= 30:
                 steps_in_interval = step_counter - last_report_steps
                 steps_per_second = steps_in_interval / (current_time - last_report_time)
+                
                 print(f"[EnvWorker] Steps per second: {steps_per_second:.2f}")
+                
                 last_report_time = current_time
                 last_report_steps = step_counter
 
@@ -236,8 +239,10 @@ def env_worker(
                 now = time.time()
                 elapsed = now - start_time
                 steps_per_second = 100 / elapsed
+                
                 if DEBUG:
                     print(f"[EnvWorker] Steps per second: {steps_per_second:.2f}")
+                
                 train_conn.send({"command": "step_rate", "steps_per_sec": steps_per_second})
                 start_time = now
             
@@ -265,7 +270,7 @@ def load_agent_weights(agent, new_weights):
                 print(f"[EnvWorker] Warning: {module_name} weight '{key}' is entirely zero!")
                 
     if "actor" in new_weights:
-        check_state_dict_consistency(new_weights["actor"], "Actor")
+        #check_state_dict_consistency(new_weights["actor"], "Actor")
         old_weights = agent.actor.state_dict()
         agent.actor.load_state_dict(new_weights["actor"])
         if DEBUG:
@@ -279,15 +284,15 @@ def load_agent_weights(agent, new_weights):
         print("[EnvWorker] No actor weights found in the provided weights dictionary.")
         
     if "actor_target" in new_weights:
-        check_state_dict_consistency(new_weights["actor_target"], "Actor Target")
+        #check_state_dict_consistency(new_weights["actor_target"], "Actor Target")
         agent.actor_target.load_state_dict(new_weights["actor_target"])
         
     if "critic" in new_weights:
-        check_state_dict_consistency(new_weights["critic"], "Critic")
+        #check_state_dict_consistency(new_weights["critic"], "Critic")
         agent.critic.load_state_dict(new_weights["critic"])
         
     if "critic_target" in new_weights:
-        check_state_dict_consistency(new_weights["critic_target"], "Critic Target")
+        #check_state_dict_consistency(new_weights["critic_target"], "Critic Target")
         agent.critic_target.load_state_dict(new_weights["critic_target"])
     
     if DEBUG:

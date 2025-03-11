@@ -2,13 +2,54 @@ import time
 import torch
 import numpy as np
 import os
-from torch.utils.tensorboard import SummaryWriter
 import signal
+import threading
+import queue  # Use standard library queue
+from torch.utils.tensorboard import SummaryWriter
 from codebase.ddpg.agent import DDPGAgent  # Updated import for DDPG
 from codebase.utils.normalizer import RunningNormalizer  # your RunningNormalizer class
 
 DEBUG = False
 LOG_FREQ = 100  # Log every 100 iterations to TensorBoard
+
+def env_message_dispatcher(env_conn, eval_conn, ack_queue, step_rate_queue, solved_queue, stop_flag):
+    """
+    Continuously reads from env_conn and dispatches messages into separate queues:
+      - ack_queue for ack messages,
+      - step_rate_queue for step rate messages,
+      - solved_queue for solved messages.
+    """
+    while not stop_flag.is_set():
+        try:
+            if env_conn.poll(0.001):
+                msg = env_conn.recv()
+                if isinstance(msg, dict):
+                    command = msg.get("command")
+                    
+                    if command == "ack_update":
+                        ack_queue.put(msg)
+                    elif command == "step_rate":
+                        step_rate_queue.put(msg)
+                    else:
+                        # Handle unknown messages
+                        print(f"[TrainWorker: EnvMessageDispatcher] Unknown message received: {msg}")
+            
+            if eval_conn.poll(0.001):
+                msg = eval_conn.recv()
+                if isinstance(msg, dict):
+                    command = msg.get("command")
+                    
+                    if command == "ack_update":
+                        ack_queue.put(msg)                    
+                    elif command == "solved":
+                        solved_queue.put(msg)
+                    else:
+                        # Handle unknown messages
+                        print(f"[TrainWorker: EnvMessageDispatcher] Unknown message received: {msg}")
+        except EOFError:
+            break
+
+        time.sleep(0.001)
 
 def train_worker(
         replay_process, 
@@ -26,9 +67,11 @@ def train_worker(
         log_dir=None):
     """
     A training process that:
-      1) Instantiates a DDPGAgent to learn from replay buffer samples.
-      2) Periodically updates the environment and evaluation workers with new policy weights synchronously.
-      3) Stops if the evaluation worker signals the environment is solved, or if stop_flag is set externally.
+      - Instantiates a DDPGAgent to learn from replay buffer samples.
+      - Periodically updates the environment and evaluation workers with new policy weights synchronously.
+      - Optionally updates a state normalizer from batches and sends these updates.
+      - Uses separate queues for handling different message types from the env_worker.
+      - Stops if the eval worker signals that the environment is solved, or if stop_flag is set externally.
     """
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
@@ -63,19 +106,30 @@ def train_worker(
     start_time = time.time()    
     sample_times = []  # List to accumulate sampling times
 
-    # Instantiate RunningNormalizer (assume state dimension is 33)
+    # Instantiate RunningNormalizer if using state normalization.
     if use_state_norm:
         state_normalizer = RunningNormalizer(shape=(33,), momentum=0.001)
+
+    # Create separate queues for messages coming from env_worker
+    ack_queue = queue.Queue()
+    step_rate_queue = queue.Queue()
+    solved_queue = queue.Queue()
+
+    # Start dispatcher thread for env_conn messages.
+    dispatcher_thread = threading.Thread(target=env_message_dispatcher,
+                                         args=(env_conn, eval_conn, ack_queue, step_rate_queue, solved_queue, stop_flag))
+    dispatcher_thread.daemon = True
+    dispatcher_thread.start()
 
     # Variables for reporting iterations per second every 30 seconds.
     last_report_time = time.time()
     last_report_iterations = 0
 
-    # Main training loop
+    # Main training loop.
     while not stop_flag.is_set():
         iteration += 1        
         
-        # 2) Sample a batch of transitions from the replay buffer
+        # 2) Sample a batch of transitions from the replay buffer.
         transitions = None
         while True:
             start_time_sampling = time.time() 
@@ -99,7 +153,6 @@ def train_worker(
             if transitions is None:
                 if DEBUG:
                     print("Insufficient data in sample, waiting for more data...")
-
                 time.sleep(1)
                 continue
 
@@ -112,30 +165,27 @@ def train_worker(
             if state_sum == 0 and action_sum == 0 and reward_sum == 0 and next_state_sum == 0:
                 if DEBUG:
                     print("Batch data is all zero, waiting for more data...")
-
+                
                 time.sleep(1)
             else:
                 break
         
-        # Update the state normalizer with the new batch of states
+        # Update the state normalizer with the new batch of states if used.
         if use_state_norm:
             state_normalizer.update(transitions.state)
-
-        # Normalize the states in the transitions
-        if use_state_norm:
             transitions = transitions._replace(
                 state=state_normalizer.normalize(transitions.state),
                 next_state=state_normalizer.normalize(transitions.next_state)
             )
 
-        # 3) Perform a learning step with the DDPG agent
+        # 3) Perform a learning step with the DDPG agent.
         metrics = agent.learn(transitions)
         
         if DEBUG:
             print(f"[TrainWorker] Completed training iteration {iteration}")
         
         # Periodically send updated normalizer parameters to other workers.
-        if use_state_norm and iteration % 10 == 0:
+        if use_state_norm and iteration % 50 == 0:
             norm_params = {
                 "mean": state_normalizer.mean.tolist(),
                 "var": state_normalizer.var.tolist(),
@@ -144,11 +194,11 @@ def train_worker(
 
             env_conn.send({"command": "update_normalizer", "normalizer": norm_params})
             eval_conn.send({"command": "update_normalizer", "normalizer": norm_params})
-
+            
             if DEBUG:
                 print("[TrainWorker] Sent updated normalizer parameters to eval_worker.")
                 
-        # Log training metrics every LOG_FREQ iterations
+        # Log training metrics every LOG_FREQ iterations.
         if iteration % LOG_FREQ == 0:
             train_writer.add_scalar("Loss/Critic", metrics["critic_loss"], iteration)
             
@@ -158,7 +208,7 @@ def train_worker(
             train_writer.add_scalar("Q-values/Mean_Q", metrics["current_Q_mean"], iteration)
             train_writer.add_scalar("Target_Q_Mean", metrics["target_Q_mean"], iteration)
         
-        # 4) Synchronous weight update: Broadcast weights and wait for acks
+        # 4) Synchronous weight update: Broadcast weights and wait for acks.
         if iteration % upd_w_frequency == 0:
             new_weights = extract_agent_weights(agent)
             
@@ -167,84 +217,68 @@ def train_worker(
                     for key, tensor in sd.items():
                         norm = torch.norm(tensor).item()
                         print(f"[TrainWorker] {name} - {key} norm: {norm:.4f}")
-                
                 print(f"[TrainWorker] Broadcasting weights at iteration {iteration}")
             
-            # Send update command to both workers
+            # Send weight update command to both workers.
             eval_conn.send({"command": "update_weights", "weights": new_weights})
             env_conn.send({"command": "update_weights", "weights": new_weights})
             
-            # Wait for environment worker ack with a longer timeout
-            env_ack_timeout = 1.0  # seconds
-            start_wait = time.time()
-            
+            # Wait for an ack from the env_worker.
             env_ack_received = False
-            while not env_ack_received and (time.time() - start_wait < env_ack_timeout):
-                if env_conn.poll(0.01):
-                    msg = env_conn.recv()
-                    
-                    if isinstance(msg, dict) and msg.get("command") == "ack_update" and msg.get("worker") == "env":
-                        env_ack_received = True
-                        
-                        if DEBUG:
-                            print("[TrainWorker] Received ack from env_worker.")
-                
-                time.sleep(0.005)
-            
-            if not env_ack_received:
+            try:
+                ack_msg = ack_queue.get(timeout=1.0)
+                if ack_msg.get("worker") == "env":
+                    env_ack_received = True
+                    if DEBUG:
+                        print("[TrainWorker] Received ack from env_worker.")
+            except queue.Empty:
                 print("[TrainWorker] Warning: Env worker did not ack in time.")
             
-            # Wait for evaluation worker ack, but only briefly
-            eval_ack_timeout = 1.0  # seconds
-            start_wait_eval = time.time()
-
+            # Wait for an ack from the eval_worker.
             eval_ack_received = False
-            while not eval_ack_received and (time.time() - start_wait_eval < eval_ack_timeout):
-                if eval_conn.poll(0.01):
-                    msg = eval_conn.recv()
-                    
-                    if isinstance(msg, dict) and msg.get("command") == "ack_update" and msg.get("worker") == "eval":
-                        eval_ack_received = True
-                        
-                        if DEBUG:
-                            print("[TrainWorker] Received ack from eval_worker.")
-                
-                time.sleep(0.005)
-            
-            if not eval_ack_received:
+            try:
+                ack_msg = ack_queue.get(timeout=1.0)
+                if ack_msg.get("worker") == "eval":
+                    eval_ack_received = True
+                    if DEBUG:
+                        print("[TrainWorker] Received ack from eval_worker.")
+            except queue.Empty:
                 print("[TrainWorker] Warning: Eval worker did not ack in time, proceeding without its ack.")
         
-        # Non-blocking check for "solved" message from eval_worker
-        while eval_conn.poll():
-            msg = eval_conn.recv()
-            if isinstance(msg, dict) and msg.get("command") == "solved":
-                avg_reward = msg.get("avg_reward", 0)
+        # Check for "solved" message from eval_worker (from the solved_queue).
+        try:
+            solved_msg = solved_queue.get_nowait()
+            if isinstance(solved_msg, dict) and solved_msg.get("command") == "solved":
+                avg_reward = solved_msg.get("avg_reward", 0)
                 print(f"[TrainWorker] Eval worker reported 'solved' with avg reward={avg_reward:.2f}")
                 
                 new_weights = extract_agent_weights(agent)
                 save_path = os.path.join(train_log_dir, f"ddpg_agent_weights_solved_{iteration}.pth")
                 torch.save(new_weights, save_path)
-                print(f"[TrainWorker] Saved agent weights to {save_path}")
                 
+                print(f"[TrainWorker] Saved agent weights to {save_path}")
                 stop_flag.set()
                 time.sleep(1)
-        
-        # Log update rate and env step rate every LOG_FREQ iterations
-        if iteration % 10 == 0:
+        except queue.Empty:
+            pass
+
+        # Log update rate and env step rate every n iterations.
+        if iteration % LOG_FREQ == 0:
             now = time.time()
             elapsed = now - start_time
-            iterations_per_second = 10 / elapsed  # Training updates per second
+            iterations_per_second = LOG_FREQ / elapsed  # Training updates per second
             
             current_env_steps_per_sec = None
-            while env_conn.poll():
-                msg = env_conn.recv()
+            
+            # Drain all step_rate messages from the step_rate_queue; use the latest if available.
+            while not step_rate_queue.empty():
+                msg = step_rate_queue.get()
                 if isinstance(msg, dict) and msg.get("command") == "step_rate":
                     current_env_steps_per_sec = msg.get("steps_per_sec")
             
             if current_env_steps_per_sec is not None:
                 ratio = iterations_per_second / current_env_steps_per_sec
                 steps_per_update = current_env_steps_per_sec / iterations_per_second
-
                 train_writer.add_scalar("Rates/UpdatesPerSec", iterations_per_second, iteration)
                 train_writer.add_scalar("Rates/EnvStepsPerSec", current_env_steps_per_sec, iteration)
                 train_writer.add_scalar("Rates/Ratio", ratio, iteration)
@@ -257,12 +291,14 @@ def train_worker(
             
             start_time = now
         
-        # --- Report iterations per second every 30 seconds ---
+        # Report iterations per second every 30 seconds.
         current_time = time.time()
         if current_time - last_report_time >= 30:
             iterations_in_interval = iteration - last_report_iterations
             iterations_per_sec = iterations_in_interval / (current_time - last_report_time)
+            
             print(f"[TrainWorker] Iterations per second: {iterations_per_sec:.2f}")
+            
             last_report_time = current_time
             last_report_iterations = iteration
         
@@ -278,3 +314,4 @@ def extract_agent_weights(agent):
         "critic": {k: v.cpu() for k, v in agent.critic.state_dict().items()},
         "critic_target": {k: v.cpu() for k, v in agent.critic_target.state_dict().items()},
     }
+

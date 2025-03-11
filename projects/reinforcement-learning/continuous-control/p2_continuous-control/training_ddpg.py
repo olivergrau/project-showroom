@@ -66,17 +66,17 @@ if __name__ == '__main__':
     batch_size = 256
     lr_actor = 1e-4
     lr_critic = 1e-4
-    upd_w_frequency = 2 # number of iterations / batches before updating the weights for the workers
+    upd_w_frequency = 1 # number of iterations / batches before updating the weights for the workers
     use_ou_noise = True
-    exploration_start_noise = 0.2
+    exploration_start_noise = 0.1
     exploration_noise_decay = 0.9999
     reward_scaling_factor = 1.0
     use_reward_normalization = False
-    use_state_norm = False
+    use_state_norm = True
 
     # Throttling: Crucial for training stability (especially in multi-worker setups)
-    throttle_steps_by = 0.03  # 0.0 means no throttling (increase throttle to lower steps per second)
-    throttle_trainings_by = 0.08  # 0.0 means no throttling (increase throttle to lower training iterations per second)
+    throttle_steps_by = 0.07 # 0.035  # 0.0 means no throttling (increase throttle to lower steps per second)
+    throttle_trainings_by = 0.0 # 0.01  # 0.0 means no throttling (increase throttle to lower training iterations per second)
 
     # Communication between env_worker and train_worker
     env_train_parent_conn, env_train_child_conn = mp.Pipe()

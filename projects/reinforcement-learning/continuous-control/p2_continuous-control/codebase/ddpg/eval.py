@@ -41,6 +41,7 @@ def message_listener(train_conn, state_normalizer, agent, stop_flag):
                         
                         # Send acknowledgment back to the train worker
                         train_conn.send({"command": "ack_update", "worker": "eval"})
+                        
                         if DEBUG:
                             print("[EvalWorker] Updated agent weights and sent ack.")
                     
@@ -111,7 +112,7 @@ def eval_worker(
         state_normalizer = RunningNormalizer(shape=(33,), momentum=0.001)
     else:
         state_normalizer = None
-        
+
     episode_rewards = []  # For sliding window average
     episode_count = 0
 
@@ -136,6 +137,7 @@ def eval_worker(
 
             # Log individual episode reward to TensorBoard (log every episode)
             eval_writer.add_scalar("Eval/Episode_Reward", ep_reward, episode_count)
+            
             if DEBUG:
                 print(f"[EvalWorker] Episode {episode_count}: Reward = {ep_reward:.2f}")
 
@@ -145,6 +147,7 @@ def eval_worker(
                     recent_avg = np.mean(episode_rewards[-window_size:])
                 else:
                     recent_avg = np.mean(episode_rewards)
+                
                 eval_writer.add_scalar("Eval/Recent_Avg_Reward", recent_avg, episode_count)
                                 
                 if len(episode_rewards) >= window_size:
@@ -194,7 +197,7 @@ def evaluate_one_episode(env, brain_name, agent, reward_scaling_factor, state_no
         # Normalize the new state
         states = state_normalizer.normalize(next_states) if state_normalizer is not None else next_states
 
-        scaled_rewards = [r * reward_scaling_factor for r in rewards]
+        scaled_rewards = np.asarray(rewards) * reward_scaling_factor
         total_rewards += np.array(scaled_rewards)
     
     return np.mean(total_rewards)
@@ -214,7 +217,7 @@ def load_agent_weights(agent, new_weights):
                     print(f"[EvalWorker] Warning: {module_name} weight '{key}' is entirely zero!")
 
     if "actor" in new_weights:
-        check_state_dict_consistency(new_weights["actor"], "Actor")
+        #check_state_dict_consistency(new_weights["actor"], "Actor")
         old_weights = agent.actor.state_dict()
         agent.actor.load_state_dict(new_weights["actor"])
         for key in old_weights.keys():
@@ -228,15 +231,15 @@ def load_agent_weights(agent, new_weights):
         print("[EvalWorker] No actor weights found in the provided weights dictionary.")
         
     if "actor_target" in new_weights:
-        check_state_dict_consistency(new_weights["actor_target"], "Actor Target")
+        #check_state_dict_consistency(new_weights["actor_target"], "Actor Target")
         agent.actor_target.load_state_dict(new_weights["actor_target"])
         
     if "critic" in new_weights:
-        check_state_dict_consistency(new_weights["critic"], "Critic")
+        #check_state_dict_consistency(new_weights["critic"], "Critic")
         agent.critic.load_state_dict(new_weights["critic"])
         
     if "critic_target" in new_weights:
-        check_state_dict_consistency(new_weights["critic_target"], "Critic Target")
+        #check_state_dict_consistency(new_weights["critic_target"], "Critic Target")
         agent.critic_target.load_state_dict(new_weights["critic_target"])
 
     if DEBUG:
