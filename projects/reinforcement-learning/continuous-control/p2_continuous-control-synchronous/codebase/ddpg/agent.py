@@ -35,6 +35,8 @@ class DDPGAgent:
         action_size=4,
         lr_actor=1e-3,
         lr_critic=1e-3,
+        critic_clip=None,
+        critic_weight_decay=1e-5,
         gamma=0.99,
         tau=0.005,
         use_reward_normalization=False,
@@ -51,6 +53,8 @@ class DDPGAgent:
         self.device = device if device is not None else torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.agent_id = "DDPGAgent (" + label + ")"
         self.use_ou_noise = use_ou_noise
+        self.critic_clip = critic_clip
+        self.critic_weight_decay = critic_weight_decay
 
         print()
         print(f"{self.agent_id}: Using device: {self.device}")
@@ -70,7 +74,7 @@ class DDPGAgent:
         self.critic = Critic(state_size, action_size).to(self.device)
         self.critic_target = Critic(state_size, action_size).to(self.device)
         self.critic_target.load_state_dict(self.critic.state_dict())
-        self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=lr_critic)# , weight_decay=1e-5)
+        self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=lr_critic, weight_decay=self.critic_weight_decay or 0.0)
 
     def act(self, state, noise=0.0):
         """
@@ -163,7 +167,9 @@ class DDPGAgent:
         critic_loss.backward()
         
         # Clip gradients to avoid exploding gradients
-        torch.nn.utils.clip_grad_norm_(self.critic.parameters(), max_norm=10.0)
+        if self.critic_clip is not None:
+            torch.nn.utils.clip_grad_norm_(self.critic.parameters(), max_norm=self.critic_clip)
+        
         self.critic_optimizer.step()
         
         # Update actor (gradient ascent)

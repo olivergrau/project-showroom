@@ -75,7 +75,7 @@ if __name__ == '__main__':
     use_state_norm = True
 
     # Throttling: Crucial for training stability (especially in multi-worker setups)
-    throttle_steps_by = 0.07 # 0.035  # 0.0 means no throttling (increase throttle to lower steps per second)
+    throttle_steps_by = 0.0 # 0.035  # 0.0 means no throttling (increase throttle to lower steps per second)
     throttle_trainings_by = 0.0 # 0.01  # 0.0 means no throttling (increase throttle to lower training iterations per second)
 
     # Communication between env_worker and train_worker
