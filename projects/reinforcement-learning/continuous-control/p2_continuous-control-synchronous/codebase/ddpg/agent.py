@@ -33,23 +33,29 @@ class DDPGAgent:
         self,
         state_size=33,
         action_size=4,
+        actor_input_size=400,      # Actor input layer size
+        actor_hidden_size=300,     # Actor hidden layer size
+        critic_input_size=400,     # Critic input layer size
+        critic_hidden_size=300,    # Critic hidden layer size
         lr_actor=1e-3,
         lr_critic=1e-3,
         critic_clip=None,
         critic_weight_decay=1e-5,
         gamma=0.99,
         tau=0.005,
-        use_reward_normalization=False,
         device=None,
         label="DDPGAgent",
-        use_ou_noise=True
+        use_ou_noise=True,
+        ou_noise_theta=0.15,
+        ou_noise_sigma=0.2
     ):
+        self.ou_noise_theta = ou_noise_theta
+        self.ou_noise_sigma = ou_noise_sigma
         self.state_size = state_size
         self.action_size = action_size
         self.gamma = gamma
         self.tau = tau
         self.total_it = 0
-        self.use_reward_normalization = use_reward_normalization
         self.device = device if device is not None else torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.agent_id = "DDPGAgent (" + label + ")"
         self.use_ou_noise = use_ou_noise
@@ -57,22 +63,61 @@ class DDPGAgent:
         self.critic_weight_decay = critic_weight_decay
 
         print()
+        print(f"{self.agent_id}: Using critic clip: {self.critic_clip}")
+        print(f"{self.agent_id}: Using critic weight decay: {self.critic_weight_decay}")
         print(f"{self.agent_id}: Using device: {self.device}")
-        print(f"{self.agent_id}: use_reward_norm={self.use_reward_normalization}, state_size={state_size}, action_size={action_size}, actor_lr={lr_actor}, critic_lr={lr_critic}, gamma={gamma}, tau={tau}")
+        print(f"{self.agent_id}: Using gamma: {gamma}")
+        print(f"{self.agent_id}: Using tau: {tau}")
+        print(f"{self.agent_id}: Using actor input size: {actor_input_size}")
+        print(f"{self.agent_id}: Using actor hidden size: {actor_hidden_size}")
+        print(f"{self.agent_id}: Using critic input size: {critic_input_size}")
+        print(f"{self.agent_id}: Using critic hidden size: {critic_hidden_size}")
+        print(f"{self.agent_id}: Using actor learning rate: {lr_actor}")
+        print(f"{self.agent_id}: Using critic learning rate: {lr_critic}")
+        print(f"{self.agent_id}: Using Ornstein-Uhlenbeck noise: {use_ou_noise}")
+        print(f"{self.agent_id}: Using OU noise theta: {ou_noise_theta}")
+        print(f"{self.agent_id}: Using OU noise sigma: {ou_noise_sigma}")
+        print()        
         
         if self.use_ou_noise:
-            self.ou_noise = OrnsteinUhlenbeckNoise(action_size, mu=0.0, theta=0.15, sigma=0.2)
-            print(f"{self.agent_id}: Ornstein-Uhlenbeck noise enabled with theta=0.15, sigma=0.2")
+            self.ou_noise = OrnsteinUhlenbeckNoise(action_size, mu=0.0, theta=ou_noise_theta, sigma=ou_noise_sigma)
+            print(f"{self.agent_id}: Ornstein-Uhlenbeck noise enabled with theta={ou_noise_theta}, sigma={ou_noise_sigma}")
 
         # Initialize actor and its target
-        self.actor = Actor(state_size, action_size).to(self.device)
-        self.actor_target = Actor(state_size, action_size).to(self.device)
+        self.actor = Actor(
+            state_size, 
+            action_size, 
+            hidden1=actor_input_size, 
+            hidden2=actor_hidden_size, 
+            init_type="kaiming",
+            use_batch_norm=True).to(self.device)
+        
+        self.actor_target = Actor(
+            state_size, 
+            action_size, 
+            hidden1=actor_input_size, 
+            hidden2=actor_hidden_size,
+            use_batch_norm=True).to(self.device)
+        
         self.actor_target.load_state_dict(self.actor.state_dict())
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=lr_actor)
 
         # Initialize a single critic and its target
-        self.critic = Critic(state_size, action_size).to(self.device)
-        self.critic_target = Critic(state_size, action_size).to(self.device)
+        self.critic = Critic(
+            state_size, 
+            action_size, 
+            hidden1=critic_input_size, 
+            hidden2=critic_hidden_size, 
+            init_type="kaiming",
+            use_batch_norm=True).to(self.device)
+        
+        self.critic_target = Critic(
+            state_size, 
+            action_size, 
+            hidden1=critic_input_size, 
+            hidden2=critic_hidden_size,
+            use_batch_norm=True).to(self.device)
+        
         self.critic_target.load_state_dict(self.critic.state_dict())
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=lr_critic, weight_decay=self.critic_weight_decay or 0.0)
 
@@ -140,23 +185,13 @@ class DDPGAgent:
             print(f"[{self.agent_id}]: Action: shape={action.shape}, min={action.min().item():.4f}, max={action.max().item():.4f}, mean={action.mean().item():.4f}")
             print(f"[{self.agent_id}]: Reward: shape={reward.shape}, min={reward.min().item():.4f}, max={reward.max().item():.4f}, mean={reward.mean().item():.4f}")
             print(f"[{self.agent_id}]: Next_state: shape={next_state.shape}, min={next_state.min().item():.4f}, max={next_state.max().item():.4f}, mean={next_state.mean().item():.4f}")
-            print(f"[{self.agent_id}]: Mask: shape={mask.shape}, unique values: {mask.unique()}")  
-
-        epsilon = 1e-6  # small value to prevent division by zero
-
-        # Optionally apply z-normalization to the scaled rewards
-        if self.use_reward_normalization:
-            r_mean = reward.mean()
-            r_std  = reward.std() + epsilon
-            normalized_reward = (reward - r_mean) / r_std
-        else:
-            normalized_reward = reward
+            print(f"[{self.agent_id}]: Mask: shape={mask.shape}, unique values: {mask.unique()}")        
             
         # Compute target Q-values without target noise (DDPG)
         with torch.no_grad():
             next_action = self.actor_target(next_state)
             target_Q = self.critic_target(next_state, next_action)
-            target = normalized_reward + mask * self.gamma * target_Q
+            target = reward + mask * self.gamma * target_Q
 
         # Get current Q estimates from the critic
         current_Q = self.critic(state, action)
@@ -192,8 +227,8 @@ class DDPGAgent:
             "critic_loss": critic_loss.item(),
             "current_Q_mean": current_Q.mean().item(),
             "target_Q_mean": target_Q.mean().item(),
-            "scaled_reward_mean": reward.mean().item(),
-            "normalized_reward_mean": normalized_reward.mean().item(),
+            "reward_mean": reward.mean().item(),
+            "reward_mean": reward.mean().item(),
             "actor_loss": actor_loss.item(),
         }
         

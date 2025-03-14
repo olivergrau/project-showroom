@@ -4,7 +4,7 @@
 ## Basic Actor-Critic Algorithm
 
 A basic Actor-Critic algorithm consists of two neural networks:  
-- The **Actor**, which decides actions based on a policy \(\pi_	heta(a \mid s)\).  
+- The **Actor**, which decides actions based on a policy \(\pi_	\theta(a \mid s)\).  
 - The **Critic**, which evaluates states with a value function \(V_\phi(s)\).  
 
 At each time step, we:  

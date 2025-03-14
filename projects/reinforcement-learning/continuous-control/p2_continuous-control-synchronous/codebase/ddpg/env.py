@@ -1,6 +1,7 @@
 import time
 import subprocess
 from unityagents import UnityEnvironment
+import gc
 
 class EnvWrapper:
     def __init__(self, exe_path, worker_id=0, use_graphics=False, preprocess_fn=None, max_retries=5, retry_delay=2):
@@ -69,7 +70,10 @@ class EnvWrapper:
             try:
                 self.env.close()
                 self._closed = True
-                
+                self.env = None
+                                
+                gc.collect()
+
                 print("[EnvWrapper] Waiting 10 seconds for closing the environment...")
                 time.sleep(10)
                 
