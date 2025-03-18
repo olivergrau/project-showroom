@@ -125,7 +125,7 @@ def train(
     print(f"  OU Noise Sigma: {ou_noise_sigma}")    
 
     # Early stopping based on evaluation reward.
-    early_stopping = EarlyStopping(patience=10, min_delta=0.4, verbose=True)
+    early_stopping = EarlyStopping(patience=20, min_delta=0.2, verbose=True)
 
     # TensorBoard logging directory.
     log_dir = os.path.join("runs", "train_ddpg", time.strftime("%Y-%m-%d_%H-%M-%S"))
@@ -141,7 +141,7 @@ def train(
     actor_loss_window_size = 10  # Number of recent updates to average.
     actor_loss_counter = 0       # Counter for insufficient actor loss (if too high).
     actor_loss_patience = 10      # Number of evaluations to tolerate insufficient actor loss.
-    plateau_patience = 10
+    plateau_patience = 20
     min_actor_threshold = -0.2   # Minimum (more negative) threshold for acceptable actor loss.
 
     # For reward normalization, we use a simple running statistic.
@@ -370,7 +370,7 @@ def extract_agent_weights(agent):
 
 
 if __name__ == "__main__":
-    print("Training module loaded. Starting manual training run.")
+    print("Training module DDPG loaded. Starting manual training run.")
 
     avg_reward = train(
         state_size=33,

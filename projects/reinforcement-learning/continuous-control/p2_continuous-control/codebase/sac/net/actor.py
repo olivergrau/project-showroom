@@ -6,7 +6,13 @@ import torch.nn.functional as F
 LOG_STD_MIN = -20
 LOG_STD_MAX = 2
 
-class Actor(nn.Module):
+# Initialize Policy weights
+def weights_init_(m):
+    if isinstance(m, nn.Linear):
+        torch.nn.init.xavier_uniform_(m.weight, gain=1)
+        torch.nn.init.constant_(m.bias, 0)
+
+class Actor(nn.Module): # Gaussian Policy
     def __init__(self, state_size=33, action_size=4, hidden1=256, hidden2=256):
         super(Actor, self).__init__()
         self.fc1 = nn.Linear(state_size, hidden1)
@@ -14,6 +20,8 @@ class Actor(nn.Module):
 
         self.mean_linear = nn.Linear(hidden2, action_size)
         self.log_std_linear = nn.Linear(hidden2, action_size)
+
+        self.apply(weights_init_)
     
     def forward(self, state):
         x = F.relu(self.fc1(state))
