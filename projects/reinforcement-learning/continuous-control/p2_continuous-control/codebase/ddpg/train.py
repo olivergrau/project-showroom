@@ -58,11 +58,23 @@ def train_worker(
         eval_conn, 
         gamma=0.99, 
         lr_actor=5e-3,
+        actor_input_size=400,      # Actor input layer size
+        actor_hidden_size=300,     # Actor hidden layer size 
         lr_critic=5e-3, 
+        critic_input_size=400,      # Actor input layer size
+        critic_hidden_size=300,     # Actor hidden layer size
+        tau=1e-3,
+        critic_clip=1.0,
+        critic_weight_decay=0.0, 
         upd_w_frequency=10,  
-        use_reward_normalization=False,
-        use_ou_noise=False,
+        use_reward_norm=False,
         use_state_norm=False,
+        use_reward_scaling=False,
+        reward_scaling_factor=1.0,
+        # Noise
+        use_ou_noise=False,
+        ou_noise_theta=0.15,       # Noise theta parameter
+        ou_noise_sigma=0.2,        # Noise sigma parameter                  
         throttle_by=0.0,
         log_dir=None):
     """
@@ -88,19 +100,27 @@ def train_worker(
     # 1) Instantiate the DDPGAgent
     agent = DDPGAgent(
         state_size=33, 
-        action_size=4, 
-        gamma=gamma, 
-        lr_critic=lr_critic, 
-        lr_actor=lr_actor, 
-        use_reward_normalization=use_reward_normalization,
+        action_size=4,         
+        lr_actor=lr_actor,
+        lr_critic=lr_critic,
+        gamma=gamma,
+        tau=tau,
+        critic_clip=critic_clip,
+        critic_weight_decay=critic_weight_decay,
         use_ou_noise=use_ou_noise,
+        ou_noise_theta=ou_noise_theta,
+        ou_noise_sigma=ou_noise_sigma,
+        actor_input_size=actor_input_size,
+        actor_hidden_size=actor_hidden_size,
+        critic_input_size=critic_input_size,
+        critic_hidden_size=critic_hidden_size,
         label="TrainWorker")
     
     # Allow some time for the environment worker to start and populate the replay buffer
     if DEBUG:
         print("Waiting for replay buffer to fill...")
     
-    time.sleep(0.5)
+    time.sleep(5)
     
     iteration = 0
     start_time = time.time()    
@@ -124,6 +144,9 @@ def train_worker(
     # Variables for reporting iterations per second every 30 seconds.
     last_report_time = time.time()
     last_report_iterations = 0
+    
+    # Variables for reward normalization.
+    reward_stats = {"mean": 0.0, "var": 1.0, "count": 0}
 
     # Main training loop.
     while not stop_flag.is_set():
@@ -178,7 +201,40 @@ def train_worker(
                 next_state=state_normalizer.normalize(transitions.next_state)
             )
 
-        # 3) Perform a learning step with the DDPG agent.
+        reward = transitions.reward
+
+        # 3) Reward scaling using PyTorch operations
+        if use_reward_scaling:
+            # Multiply rewards by the scaling factor and clamp between -1 and 1
+            reward = torch.clamp(reward * reward_scaling_factor, -1.0, 1.0)
+            transitions = transitions._replace(reward=reward)
+        
+        # --- Reward Normalization (Welford's algorithm style) using PyTorch ---
+        if use_reward_norm:
+            # Assume reward is a 1D tensor of shape [batch_size]
+            n = reward.size(0)  # number of reward elements
+            old_count = reward_stats["count"]
+            new_count = old_count + n
+        
+            # Compute the sum and squared sum of the rewards using torch operations.
+            reward_sum = torch.sum(reward)
+            reward_sq_sum = torch.sum(reward ** 2)
+        
+            # Update the running mean and variance (stored as Python floats)
+            new_mean = (old_count * reward_stats["mean"] + reward_sum.item()) / new_count
+            new_var = ((old_count * (reward_stats["var"] + reward_stats["mean"]**2) + reward_sq_sum.item()) / new_count) - new_mean**2
+        
+            reward_stats["mean"] = new_mean
+            reward_stats["var"] = new_var if new_var > 0 else 1.0
+            reward_stats["count"] = new_count
+        
+            # Normalize the reward tensor
+            std = torch.sqrt(torch.tensor(reward_stats["var"], dtype=reward.dtype, device=reward.device))
+            normalized_reward = (reward - new_mean) / (std + 1e-8)
+        
+            transitions = transitions._replace(reward=normalized_reward)
+
+        # 4) Perform a learning step with the DDPG agent.
         metrics = agent.learn(transitions)
         
         if DEBUG:
@@ -208,15 +264,20 @@ def train_worker(
             train_writer.add_scalar("Q-values/Mean_Q", metrics["current_Q_mean"], iteration)
             train_writer.add_scalar("Target_Q_Mean", metrics["target_Q_mean"], iteration)
         
-        # 4) Synchronous weight update: Broadcast weights and wait for acks.
+        # 5) Synchronous weight update: Broadcast weights and wait for acks.
         if iteration % upd_w_frequency == 0:
             new_weights = extract_agent_weights(agent)
             
             if DEBUG:
                 for name, sd in new_weights.items():
-                    for key, tensor in sd.items():
-                        norm = torch.norm(tensor).item()
-                        print(f"[TrainWorker] {name} - {key} norm: {norm:.4f}")
+                    for key, tensor in sd.items():                                    
+                        # Only compute norm for floating-point tensors
+                        if torch.is_floating_point(tensor):
+                            norm = torch.norm(tensor).item()
+                            print(f"[TrainWorker] {name} - {key} norm: {norm:.4f}")
+                        else:
+                            print(f"[TrainWorker] Skipping {name} - {key} (dtype: {tensor.dtype})")
+            
                 print(f"[TrainWorker] Broadcasting weights at iteration {iteration}")
             
             # Send weight update command to both workers.

@@ -59,16 +59,22 @@ def env_worker(
         main_conn,
         replay_process, 
         stop_flag, 
-        unity_exe_path="Reacher_Linux/Reacher.x86_64", 
-        gamma=0.99,
-        lr_actor=5e-3,
-        lr_critic=5e-3, 
-        exploration_noise=0.15,
-        exploration_noise_decay=0.9999,
-        reward_scaling_factor=10.0,
-        throttle_by=0.0,
-        use_ou_noise=False,
+        unity_exe_path="Reacher_Linux/Reacher.x86_64",
         use_state_norm=False,
+        # Actor        
+        actor_input_size=400,      # Actor input layer size
+        actor_hidden_size=300,     # Actor hidden layer size        
+        # Critic
+        critic_input_size=400,     # Critic input layer size
+        critic_hidden_size=300,    # Critic hidden layer size
+        # Noise
+        use_ou_noise=False,
+        ou_noise_theta=0.15,       # Noise theta parameter
+        ou_noise_sigma=0.2,        # Noise sigma parameter  
+        start_noise_scaling_factor=1.0,           # Initial noise scaling factor
+        min_noise_scaling_factor=0.05,     # Minimum noise scaling factor after decay
+        noise_decay_rate=0.99,     # Decay rate per episode for noise scaling factor        
+        throttle_by=0.0,  
         log_dir=None):
     """
     Environment process:
@@ -78,7 +84,24 @@ def env_worker(
       - Receives update messages from the train worker via a dedicated listener thread.
     """
     signal.signal(signal.SIGINT, signal.SIG_IGN)
-    print(f"EnvWorker: gamma={gamma}, lr_actor={lr_actor}, lr_critic={lr_critic}, exploration_noise={exploration_noise}, exploration_noise_decay={exploration_noise_decay}, reward_scaling_factor={reward_scaling_factor}")
+    # print out parameters in nice format
+    print("[EnvWorker] Environment worker parameters:")
+    print(f"  - Unity Executable: {unity_exe_path}")
+    print(f"  - Use State Normalization: {use_state_norm}")
+    print(f"  - Actor Input Size: {actor_input_size}")
+    print(f"  - Actor Hidden Size: {actor_hidden_size}")
+    print(f"  - Critic Input Size: {critic_input_size}")
+    print(f"  - Critic Hidden Size: {critic_hidden_size}")
+    print(f"  - Use OU Noise: {use_ou_noise}")
+    print(f"  - OU Noise Theta: {ou_noise_theta}")
+    print(f"  - OU Noise Sigma: {ou_noise_sigma}")
+    print(f"  - Exploration Start Noise Scaling Factor: {start_noise_scaling_factor}")
+    print(f"  - Min Noise Scaling Factor: {min_noise_scaling_factor}")
+    print(f"  - Noise Decay Rate: {noise_decay_rate}")
+    print(f"  - Throttle By: {throttle_by}")
+    print(f"  - Log Directory: {log_dir}")
+    print()
+    
     print("[EnvWorker] Starting environment worker...")
     
     # Create a log directory for environment metrics
@@ -100,6 +123,7 @@ def env_worker(
         try:
             env_info = env.reset(train_mode=True)[brain_name]
             print(f"[EnvWorker] Successfully reset Unity environment on attempt {attempt + 1}")
+            print()
             break
         except KeyError as e:
             print(f"[EnvWorker] Error on env.reset: {e}. Attempt {attempt+1}/{max_retries}. Retrying in {retry_delay} seconds...")
@@ -112,13 +136,19 @@ def env_worker(
 
     # Instantiate the agent that will act in the environment
     agent = DDPGAgent(
-        state_size=33, 
-        action_size=4, 
-        gamma=gamma, 
-        label="EnvWorker", 
-        lr_actor=lr_actor, 
-        lr_critic=lr_critic,
-        use_ou_noise=use_ou_noise)
+        state_size=33,
+        action_size=4,
+        lr_actor=1e-3, # not really needed when only act is used
+        lr_critic=1e-3, # not really needed when only act is used
+        use_ou_noise=use_ou_noise,
+        ou_noise_theta=ou_noise_theta,
+        ou_noise_sigma=ou_noise_sigma,
+        actor_input_size=actor_input_size,
+        actor_hidden_size=actor_hidden_size,
+        critic_input_size=critic_input_size,
+        critic_hidden_size=critic_hidden_size,
+        label="EnvWorker"
+    )
 
     # Instantiate RunningNormalizer (assume state dimension is 33)
     if use_state_norm:
@@ -138,6 +168,8 @@ def env_worker(
     listener_thread = threading.Thread(target=message_listener, args=(train_conn, state_normalizer, agent, stop_flag))
     listener_thread.daemon = True
     listener_thread.start()
+    
+    noise_scaling_factor = start_noise_scaling_factor
 
     try:
         env_info = env.reset(train_mode=True)[brain_name]
@@ -160,7 +192,7 @@ def env_worker(
                     break
 
             # Select actions using the normalized state
-            actions = agent.act(preprocessed_states, noise=exploration_noise)
+            actions = agent.act(preprocessed_states, noise_scaling_factor=noise_scaling_factor)
             actions = np.clip(actions, -1, 1)
             
             # Step the environment
@@ -169,13 +201,12 @@ def env_worker(
             rewards = env_info.rewards
             dones = env_info.local_done
             
-            # Scale rewards
-            if reward_scaling_factor is not None and reward_scaling_factor != 1.0:
-                scaled_rewards = np.asarray(rewards) * reward_scaling_factor
+            if use_state_norm:
+                preprocessed_next_states = state_normalizer.normalize(raw_next_states)
             else:
-                scaled_rewards = rewards
-            
-            avg_step_reward = np.mean(scaled_rewards)
+                preprocessed_next_states = raw_next_states
+
+            avg_step_reward = np.mean(rewards)
 
             if step_counter % LOG_FREQ == 0:
                 env_writer.add_scalar("Env/Step_Mean_Reward", avg_step_reward, step_counter)
@@ -183,7 +214,7 @@ def env_worker(
             step_counter += 1
             
             # Accumulate rewards for episodic logging.
-            episode_rewards += np.array(scaled_rewards)
+            episode_rewards += np.array(rewards)
             done_mask = np.array(dones, dtype=bool)
             if done_mask.any():
                 for i, done in enumerate(done_mask):
@@ -197,31 +228,44 @@ def env_worker(
             if DEBUG and step_counter % LOG_FREQ == 0:
                 print(f"[EnvWorker] Step {step_counter}, Avg. Step Reward: {avg_step_reward:.6f}")
 
-            # Feed the raw transition into the replay buffer.
-            replay_process.feed({
-                'state': raw_states,
-                'action': actions,
-                'reward': scaled_rewards,
-                'next_state': raw_next_states,
-                'mask': [0 if d else 1 for d in dones]
-            })
-            
-            # Update current state.
-            raw_states = raw_next_states
-            
-            # Recompute normalized state for the next action selection.
-            if use_state_norm:
-                preprocessed_states = state_normalizer.normalize(raw_states)
+            # --------- Now, update the replay buffer with the new transitions ---------
+            # Only feed this transition if:
+            #   - The reward vector is not all zeros, OR
+            #   - It is all zeros but with 10% probability (to keep some zero-reward transitions)
+            reward_array = np.array(rewards, dtype=np.float64)
+            if np.all(np.abs(reward_array) < 1e-6):
+                if np.random.rand() < 0.01:
+                    # With x% probability, store the zero-reward transition
+                    replay_process.feed({
+                        'state': preprocessed_states,
+                        'action': actions,
+                        'reward': rewards,
+                        'next_state': preprocessed_next_states,
+                        'mask': done_mask
+                    })
+                else:
+                    # Otherwise, skip feeding this transition
+                    pass
             else:
-                preprocessed_states = raw_states
+                # If at least one agent got a nonzero reward, store the transition
+                replay_process.feed({
+                    'state': preprocessed_states,
+                    'action': actions,
+                    'reward': rewards,
+                    'next_state': preprocessed_next_states,
+                    'mask': done_mask
+                })
 
-            if exploration_noise_decay is not None and step_counter % noise_decay_interval == 0:
-                exploration_noise *= exploration_noise_decay
-                exploration_noise = max(exploration_noise, 0.01)
-                env_writer.add_scalar("Env/Exploration_Noise", exploration_noise, step_counter)
+            # Update current state.
+            preprocessed_states = preprocessed_next_states
+
+            if noise_decay_rate is not None and step_counter % noise_decay_interval == 0:
+                noise_scaling_factor *= noise_decay_rate
+                noise_scaling_factor = max(noise_scaling_factor, min_noise_scaling_factor)
+                env_writer.add_scalar("Env/Exploration_Noise_Scaling_Factor", noise_scaling_factor, step_counter)
                 
                 if DEBUG and step_counter % 1000 == 0:
-                    print(f"[EnvWorker] Exploration noise decayed to: {exploration_noise:.6f}")
+                    print(f"[EnvWorker] Exploration noise scaling factor decayed to: {noise_scaling_factor:.6f}")
             
             # Report steps per minute every 30 seconds.
             current_time = time.time()
@@ -245,8 +289,8 @@ def env_worker(
                 
                 train_conn.send({"command": "step_rate", "steps_per_sec": steps_per_second})
                 start_time = now
-            
-            if throttle_by > 0:
+
+            if throttle_by > 0.0:
                 time.sleep(throttle_by)
             
         print("[EnvWorker] Environment worker terminating...")

@@ -181,5 +181,8 @@ projects/reinforcement-learning/navigation/p1_navigation/runs/
 projects/reinforcement-learning/navigation/p1_navigation/Banana_Linux/
 projects/reinforcement-learning/continuous-control/p2_continuous-control/Reacher_Linux/
 projects/reinforcement-learning/continuous-control/p2_continuous-control-synchronous/Reacher_Linux/
+projects/reinforcement-learning/continuous-control/p2_continuous-control-synchronous/Reacher_Linux_Single/
 to-look-at/
 bak/
+projects/reinforcement-learning/continuous-control/python/
+projects/reinforcement-learning/continuous-control/p2_continuous-control-synchronous/runs/

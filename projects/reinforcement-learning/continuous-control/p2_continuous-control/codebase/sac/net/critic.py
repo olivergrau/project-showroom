@@ -2,7 +2,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class Critic(nn.Module):
+# Initialize Policy weights
+def weights_init_(m):
+    if isinstance(m, nn.Linear):
+        torch.nn.init.xavier_uniform_(m.weight, gain=1)
+        torch.nn.init.constant_(m.bias, 0)
+
+class Critic(nn.Module): # QNetwork
     def __init__(self, state_size=33, action_size=4, hidden1=256, hidden2=256):
         super(Critic, self).__init__()
         
@@ -16,15 +22,7 @@ class Critic(nn.Module):
         self.fc2_2 = nn.Linear(hidden1, hidden2)
         self.fc2_3 = nn.Linear(hidden2, 1)
         
-        self._init_weights()
-
-    def _init_weights(self):
-        # Orthogonal initialization similar to your TD3 networks
-        for m in self.modules():
-            if isinstance(m, nn.Linear):
-                nn.init.orthogonal_(m.weight, gain=1.0)
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0.1)
+        self.apply(weights_init_)
                     
     def forward(self, state, action):
         xu = torch.cat([state, action], dim=-1)
@@ -38,4 +36,5 @@ class Critic(nn.Module):
         x2 = F.relu(self.fc2_1(xu))
         x2 = F.relu(self.fc2_2(x2))
         q2 = self.fc2_3(x2)
+        
         return q1, q2

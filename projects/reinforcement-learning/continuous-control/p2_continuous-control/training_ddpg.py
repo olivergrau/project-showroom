@@ -14,7 +14,7 @@ if not hasattr(np, "int_"):
 print("Current working directory:", os.getcwd())
 
 # Create a unique log directory based on current datetime
-log_dir = os.path.join("runs", "run_" + datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
+log_dir = os.path.join("runs", "run_ddpg" + datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
 print("Logging directory:", log_dir)
 
 # Code for replay buffer
@@ -62,21 +62,32 @@ if __name__ == '__main__':
     stop_flag = mp.Event()
     
     # Hyperparameters
-    gamma = 0.99
+    gamma = 0.96
     batch_size = 256
-    lr_actor = 1e-4
-    lr_critic = 1e-4
-    upd_w_frequency = 1 # number of iterations / batches before updating the weights for the workers
+    lr_actor = 1e-6
+    lr_critic = 1e-7
+    tau = 0.005
+    critic_clip = 10.0
+    critic_weight_decay = 1e-6    
+    actor_input_size = 400
+    actor_hidden_size = 300
+    critic_input_size = 400
+    critic_hidden_size = 300
+    upd_w_frequency = 250 # number of iterations / batches before updating the weights for the workers
     use_ou_noise = True
-    exploration_start_noise = 0.1
+    ou_noise_theta = 0.15
+    ou_noise_sigma = 0.08
+    exploration_start_noise_factor = 0.5
     exploration_noise_decay = 0.9999
-    reward_scaling_factor = 1.0
-    use_reward_normalization = False
+    use_reward_scaling = False
+    reward_scaling_factor = 10.0
+    use_reward_norm = True
     use_state_norm = True
-
+    min_noise_scaling_factor = 0.01
+    
     # Throttling: Crucial for training stability (especially in multi-worker setups)
     throttle_steps_by = 0.0 # 0.035  # 0.0 means no throttling (increase throttle to lower steps per second)
-    throttle_trainings_by = 0.0 # 0.01  # 0.0 means no throttling (increase throttle to lower training iterations per second)
+    throttle_trainings_by = 0.008 # 0.01  # 0.0 means no throttling (increase throttle to lower training iterations per second)
 
     # Communication between env_worker and train_worker
     env_train_parent_conn, env_train_child_conn = mp.Pipe()
@@ -95,7 +106,7 @@ if __name__ == '__main__':
 
     # Start the ReplayWrapper in a separate process
     replay_kwargs = {
-        'memory_size': 100000,
+        'memory_size': 1000000,
         'batch_size': batch_size,
         'discount': gamma,
         'n_step': 1,
@@ -119,15 +130,18 @@ if __name__ == '__main__':
             replay_proxy, 
             stop_flag, 
             "Reacher_Linux/Reacher.x86_64", 
-            gamma, 
-            lr_actor, 
-            lr_critic,
-            exploration_start_noise,            
-            exploration_noise_decay,
-            reward_scaling_factor,
-            throttle_steps_by,
-            use_ou_noise,
             use_state_norm,
+            actor_input_size,
+            actor_hidden_size,
+            critic_input_size,
+            critic_hidden_size,
+            use_ou_noise,
+            ou_noise_theta,
+            ou_noise_sigma,
+            exploration_start_noise_factor,
+            min_noise_scaling_factor,
+            exploration_noise_decay,
+            throttle_steps_by,
             log_dir
         )
     )
@@ -141,11 +155,7 @@ if __name__ == '__main__':
             eval_main_child_conn, # NEW: Stop signal from main
             stop_flag, 
             "Reacher_Linux/Reacher.x86_64", 
-            30.0, 
-            gamma, 
-            lr_actor, 
-            lr_critic,
-            reward_scaling_factor,
+            30.0,             
             use_state_norm,
             log_dir, 100)
     )
@@ -173,11 +183,22 @@ if __name__ == '__main__':
             eval_train_parent_conn, 
             gamma, 
             lr_actor, 
+            actor_input_size,
+            actor_hidden_size,
             lr_critic,
+            critic_input_size,
+            critic_hidden_size,
+            tau,
+            critic_clip,
+            critic_weight_decay,
             upd_w_frequency, 
-            use_reward_normalization,
+            use_reward_norm,
+            use_state_norm,
+            use_reward_scaling,
+            reward_scaling_factor,
             use_ou_noise,  
-            use_state_norm,   
+            ou_noise_theta,
+            ou_noise_sigma,
             throttle_trainings_by,  
             log_dir
         )  # Pass the parent conns so training can send messages
