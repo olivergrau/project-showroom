@@ -33,7 +33,7 @@ def evaluate(agent, env, normalizer=None, episodes=5, threshold=30.0):
 
     for ep in range(episodes):
         try:
-            state = env.reset(train_mode=True)
+            state = env.reset(train_mode=False)
         except Exception as e:
             print(f"[Evaluation] Error resetting environment in eval episode {ep+1}: {e}")
             env.close()

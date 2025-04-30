@@ -21,7 +21,7 @@ from codebase.sac.agent import SACAgent
 from codebase.utils.normalizer import RunningNormalizer
 from codebase.sac.env import BootstrappedEnvironment
 from codebase.sac.eval import evaluate
-from codebase.replay.replay_buffer import PrioritizedReplay
+from codebase.replay.replay_buffer import PrioritizedReplay, UniformReplay
 from codebase.utils.early_stopping import EarlyStopping
 
 from torch.utils.tensorboard import SummaryWriter
@@ -36,7 +36,7 @@ if not hasattr(np, "int_"):
 
 DEBUG = False
 
-def convert_batch_to_tensor(batch, device):
+def convert_batch_to_tensor(batch, device, use_priorities=False):
     """
     Converts each field in the sampled batch from numpy arrays to torch tensors.
     
@@ -52,11 +52,18 @@ def convert_batch_to_tensor(batch, device):
     reward = torch.as_tensor(batch.reward, dtype=torch.float32, device=device)
     next_state = torch.as_tensor(batch.next_state, dtype=torch.float32, device=device)
     mask = torch.as_tensor(batch.mask, dtype=torch.float32, device=device)
-    sampling_prob = torch.as_tensor(batch.sampling_prob, dtype=torch.float32, device=device)
-    idx = torch.as_tensor(batch.idx, dtype=torch.float32, device=device)
-    
+
     Transition = type(batch) # Remember batch is a namedtuple
-    return Transition(state, action, reward, next_state, mask, sampling_prob, idx)
+    
+    if use_priorities:
+        sampling_prob = torch.as_tensor(batch.sampling_prob, dtype=torch.float32, device=device)
+        idx = torch.as_tensor(batch.idx, dtype=torch.float32, device=device)
+        
+        Transition = Transition(state, action, reward, next_state, mask, sampling_prob, idx)
+    else:
+        Transition = Transition(state, action, reward, next_state, mask)
+    
+    return Transition
 
 def calculate_num_updates(total_env_steps, env_steps_per_update, updates_per_block):
     """
@@ -105,7 +112,8 @@ def train(
     env_steps_per_update=20,   # Number of environment steps to collect before updates
     updates_per_block=10,      # Number of learning updates to perform after env_steps_per_update
     sampling_warm_up_steps=10000,  # Number of steps to sample random actions before using policy
-    trial=None                 # Optional Optuna trial for pruning; default is None
+    trial=None,                 # Optional Optuna trial for pruning; default is None
+    use_prioritized_replay=False,  # Use prioritized replay buffer
 ):
     LOG_FREQ = 200  # Log metrics every LOG_FREQ steps
 
@@ -121,6 +129,7 @@ def train(
     print(f"  Actor LR: {lr_actor}")
     print(f"  Critic LR: {lr_critic}")
     print(f"  Alpha LR: {lr_alpha}")
+    print(f"  Fixed Alpha: {fixed_alpha}")
     print(f"  Tau: {tau}")
     print(f"  Replay Capacity: {replay_capacity}")
     print(f"  Evaluation Frequency: {eval_frequency}")
@@ -132,12 +141,13 @@ def train(
     print(f"  Env Steps per Update Block: {env_steps_per_update}")
     print(f"  Updates per Block: {updates_per_block}")
     print(f"  Use State Normalization: {use_state_norm}")
-    print(f"  Sampling Warm-up Steps: {sampling_warm_up_steps}")   
+    print(f"  Sampling Warm-up Steps: {sampling_warm_up_steps}") 
+    print(f"  Use prioritized replay: {use_prioritized_replay}")
 
     num_updates = calculate_num_updates(max_steps * episodes, env_steps_per_update, updates_per_block)
     print(f"Total updates if training runs for {episodes} episodes: {num_updates}")
 
-    early_stopping = EarlyStopping(patience=20, min_delta=0.2, verbose=True, zero_patience=10)
+    early_stopping = EarlyStopping(patience=20, min_delta=0.2, verbose=True, zero_patience=10, actor_patience=10)
     log_dir = os.path.join("runs", "train_sac", time.strftime("%Y-%m-%d_%H-%M-%S"))
     writer = SummaryWriter(log_dir=log_dir)
     
@@ -174,7 +184,7 @@ def train(
                 'history_length': 1
             }
 
-            buffer = PrioritizedReplay(**replay_kwargs)
+            buffer = PrioritizedReplay(**replay_kwargs) if use_prioritized_replay else UniformReplay(**replay_kwargs)
             normalizer = RunningNormalizer(shape=(state_size,), momentum=0.001) if use_state_norm else None
             
             total_steps = 0
@@ -193,6 +203,7 @@ def train(
                 
                 # Track reward statistics for each agent
                 agent_rewards_log = [[] for _ in range(num_agents)]  # List of lists, one per agent
+                episode_actor_losses = []
 
                 for step in range(max_steps):
                     total_steps += 1
@@ -216,7 +227,7 @@ def train(
                         num_agents_rewarded = np.count_nonzero(np.abs(reward) > 1e-6)  # Use a small threshold
 
                         # Log if more than one agent received a reward
-                        if num_agents_rewarded > 2:
+                        if DEBUG and num_agents_rewarded > 2:
                             print(f"Episode {episode} / Step {step}: {num_agents_rewarded}/{num_agents} agents received a reward!")
                             print(f"Reward Vector: {reward}")
 
@@ -262,11 +273,14 @@ def train(
                             else:
                                 batch_indices = None
                             
-                            batch = convert_batch_to_tensor(batch, device=agent.device)
+                            batch = convert_batch_to_tensor(batch, device=agent.device, use_priorities=use_prioritized_replay)
                             
                             metrics = agent.learn(batch)
                             train_iter += 1
-                            
+
+                            # Append the actor loss for this update.
+                            episode_actor_losses.append(metrics["actor_loss"])
+    
                             # If the replay buffer is prioritized, update its priorities:
                             if batch_indices is not None:
                                 # Extract per-sample TD errors (ensure they are positive; add epsilon if needed)
@@ -334,13 +348,22 @@ def train(
                     if step % LOG_FREQ == 0:
                         writer.add_scalar("ReplayBuffer/Size", buffer.size(), train_iter)
                         
-                    if all(done_flags):
-                    #if np.any(done_flags):
+                    if all(done_flags):                    
                         break                        
 
                 writer.add_scalar("Episode/Reward", episode_reward, episode)
                 print(f"Episode {episode:4d} | Average Reward: {episode_reward:7.2f} | Total Steps: {total_steps} | Total updates: {train_iter}")
 
+                if len(episode_actor_losses) > 0:
+                    avg_actor_loss = np.mean(episode_actor_losses)
+                else:
+                    avg_actor_loss = None
+
+                if early_stopping.stepActorLoss(avg_actor_loss):
+                    print("Early stopping triggered (evaluation reward or actor loss). Stopping training.")
+                    avg_reward = 0
+                    break
+                    
                 if episode % eval_frequency == 0 and episode > 40:
                     print(f"Evaluating agent at episode {episode}...")
                     try:
@@ -363,10 +386,11 @@ def train(
                             save_path = "sac_agent_weights_solved.pth"
                             torch.save(new_weights, save_path)
                             print(f"Saved agent weights to {save_path}")
-                            break                        
-                            
-                        if early_stopping.step(avg_reward):
-                            print("Early stopping triggered (evaluation reward). Stopping training.")
+                            break
+
+                        # Use both evaluation reward and actor loss for early stopping.
+                        if early_stopping.stepAvgReward(avg_reward):
+                            print("Early stopping triggered (evaluation reward or actor loss). Stopping training.")
                             break
                         
                     except Exception as eval_e:
@@ -411,11 +435,12 @@ if __name__ == "__main__":
         actor_hidden_size=256,
         critic_input_size=256,
         critic_hidden_size=256,
-        lr_actor=3e-4,
-        lr_critic=1e-5,
+        lr_actor=0.0001072125554876262,
+        lr_critic=2.881528070879151e-05,
         lr_alpha=1e-5,
+        fixed_alpha=0.01002728683050814,
         target_entropy=-4,
-        tau=0.005,
+        tau=0.002637397705574732,
         replay_capacity=int(1e6),
         eval_frequency=10,
         eval_episodes=1,
@@ -425,8 +450,9 @@ if __name__ == "__main__":
         use_reward_scaling=True,
         reward_scaling_factor=20.0,
         use_reward_normalization=True,
-        env_steps_per_update=20,
-        updates_per_block=10,
-        sampling_warm_up_steps=5000 # five episodes of 1000 steps each
+        env_steps_per_update=50,
+        updates_per_block=18,
+        sampling_warm_up_steps=5000, # five episodes of 1000 steps each
+        use_prioritized_replay=False
     )
     print(f"Training completed. Average reward: {avg_reward:.2f}")

@@ -7,7 +7,9 @@ import numpy as np
 from codebase.ddpg.net.actor import Actor  # same actor network
 from codebase.ddpg.net.critic import Critic  # same critic network
 
-DEBUG = False
+DEBUG = False  # Set to True for detailed debugging
+PRINT_EVERY = 1  # Print debug information every PRINT_EVERY steps
+MAX_PRINT_STEPS = 50  # Maximum number of steps to print debug information
 
 class OrnsteinUhlenbeckNoise:
     """
@@ -39,15 +41,17 @@ class DDPGAgent:
         critic_hidden_size=300,    # Critic hidden layer size
         lr_actor=1e-3,
         lr_critic=1e-3,
-        critic_clip=None,
-        critic_weight_decay=1e-5,
+        critic_clip_norm=None,
+        critic_weight_decay=0.0,
         gamma=0.99,
         tau=0.005,
         device=None,
         label="DDPGAgent",
         use_ou_noise=True,
         ou_noise_theta=0.15,
-        ou_noise_sigma=0.2
+        ou_noise_sigma=0.2,
+        use_batch_norm=False,
+        use_prioritized_replay=False,
     ):
         self.ou_noise_theta = ou_noise_theta
         self.ou_noise_sigma = ou_noise_sigma
@@ -59,8 +63,9 @@ class DDPGAgent:
         self.device = device if device is not None else torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.agent_id = "DDPGAgent (" + label + ")"
         self.use_ou_noise = use_ou_noise
-        self.critic_clip = critic_clip
+        self.critic_clip = critic_clip_norm
         self.critic_weight_decay = critic_weight_decay
+        self.use_prioritized_replay = use_prioritized_replay
 
         print()
         print(f"{self.agent_id}: Using critic clip: {self.critic_clip}")
@@ -77,6 +82,8 @@ class DDPGAgent:
         print(f"{self.agent_id}: Using Ornstein-Uhlenbeck noise: {use_ou_noise}")
         print(f"{self.agent_id}: Using OU noise theta: {ou_noise_theta}")
         print(f"{self.agent_id}: Using OU noise sigma: {ou_noise_sigma}")
+        print(f"{self.agent_id}: Using batch normalization: {use_batch_norm}")
+        print(f"{self.agent_id}: Using prioritized replay: {use_prioritized_replay}")
         print()        
         
         if self.use_ou_noise:
@@ -90,14 +97,14 @@ class DDPGAgent:
             hidden1=actor_input_size, 
             hidden2=actor_hidden_size, 
             init_type="kaiming",
-            use_batch_norm=True).to(self.device)
+            use_batch_norm=use_batch_norm).to(self.device)
         
         self.actor_target = Actor(
             state_size, 
             action_size, 
             hidden1=actor_input_size, 
             hidden2=actor_hidden_size,
-            use_batch_norm=True).to(self.device)
+            use_batch_norm=use_batch_norm).to(self.device)
         
         self.actor_target.load_state_dict(self.actor.state_dict())
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=lr_actor)
@@ -109,14 +116,15 @@ class DDPGAgent:
             hidden1=critic_input_size, 
             hidden2=critic_hidden_size, 
             init_type="kaiming",
-            use_batch_norm=True).to(self.device)
+            use_batch_norm=use_batch_norm,
+            dropout_prob=0.2).to(self.device)
         
         self.critic_target = Critic(
             state_size, 
             action_size, 
             hidden1=critic_input_size, 
             hidden2=critic_hidden_size,
-            use_batch_norm=True).to(self.device)
+            use_batch_norm=use_batch_norm).to(self.device)
         
         self.critic_target.load_state_dict(self.critic.state_dict())
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=lr_critic, weight_decay=self.critic_weight_decay or 0.0)
@@ -130,8 +138,13 @@ class DDPGAgent:
         if state.dim() == 1:
             state = state.unsqueeze(0)
 
-        action = self.actor(state)
+        self.actor.eval()  # Switch to evaluation mode
         
+        with torch.no_grad():
+            action = self.actor(state)
+        
+        self.actor.train()  # Optionally, revert back to training mode if needed
+
         if noise != 0.0 and self.use_ou_noise:
             # Use Ornstein-Uhlenbeck noise for temporally correlated exploration
             ou_noise = self.ou_noise.sample() * noise
@@ -157,8 +170,8 @@ class DDPGAgent:
         """
         if self.use_ou_noise:
             self.ou_noise.reset()
-    
-    def learn(self, batch):
+
+    def learn(self, batch, is_weights=None):
         """
         Update the DDPG agent networks based on a batch of transitions.
         Batch is expected to be a namedtuple or similar structure containing:
@@ -167,72 +180,104 @@ class DDPGAgent:
         - reward: shape [batch_size]
         - next_state: shape [batch_size, state_size]
         - mask: shape [batch_size] (1 if not done, 0 if done)
-        Returns a dictionary of metrics for logging.
+    
+        Returns a dictionary of metrics for logging, including a per-sample TD error
+        so you can update priorities in your replay buffer.
         """
         self.total_it += 1
-
+        
         # Unpack batch and move to the appropriate device
         state = batch.state.to(self.device)
         action = batch.action.to(self.device)
         reward = batch.reward.unsqueeze(1).to(self.device)
         next_state = batch.next_state.to(self.device)
         mask = batch.mask.unsqueeze(1).to(self.device)
-        
-        # Debug: Print batch statistics for plausibility check
-        if DEBUG:
-            print(f"[{self.agent_id}]: === Batch Statistics ===")
-            print(f"[{self.agent_id}]: State: shape={state.shape}, min={state.min().item():.4f}, max={state.max().item():.4f}, mean={state.mean().item():.4f}")
-            print(f"[{self.agent_id}]: Action: shape={action.shape}, min={action.min().item():.4f}, max={action.max().item():.4f}, mean={action.mean().item():.4f}")
-            print(f"[{self.agent_id}]: Reward: shape={reward.shape}, min={reward.min().item():.4f}, max={reward.max().item():.4f}, mean={reward.mean().item():.4f}")
-            print(f"[{self.agent_id}]: Next_state: shape={next_state.shape}, min={next_state.min().item():.4f}, max={next_state.max().item():.4f}, mean={next_state.mean().item():.4f}")
-            print(f"[{self.agent_id}]: Mask: shape={mask.shape}, unique values: {mask.unique()}")        
-            
-        # Compute target Q-values without target noise (DDPG)
-        with torch.no_grad():
-            next_action = self.actor_target(next_state)
-            target_Q = self.critic_target(next_state, next_action)
-            target = reward + mask * self.gamma * target_Q
 
-        # Get current Q estimates from the critic
+        if is_weights is None:
+            is_weights = torch.ones_like(reward)
+
+        # For logging reward stats
+        reward_log = (
+            reward.mean().item(),
+            reward.std().item(),
+            reward.min().item(),
+            reward.max().item(),
+        )
+    
+        # --- Critic Update ---
+        with torch.no_grad():
+            noise = (torch.randn_like(action) * 0.2).clamp(-0.5, 0.5)
+            noisy_action = (self.actor_target(next_state) + noise).clamp(-1.0, 1.0)
+            target_Q = self.critic_target(next_state, noisy_action)
+            target = reward + mask * self.gamma * target_Q
+            # clamp:     target = reward + mask * self.gamma * torch.clamp(target_Q, min=-10.0, max=10.0)
+
+        # 2. Compute current Q
         current_Q = self.critic(state, action)
-        critic_loss = nn.MSELoss()(current_Q, target)
-        
-        # Update critic
+    
+        # 3. Critic loss
+        if self.use_prioritized_replay:
+            td_error = current_Q - target
+            #weights = batch.is_weight.unsqueeze(1)  # shape: [batch_size, 1]
+            critic_loss = (is_weights * td_error ** 2).mean()
+        else:
+            #critic_loss = nn.MSELoss()(current_Q, target)
+            critic_loss = nn.SmoothL1Loss()(current_Q, target)
+
+        # Optimize critic
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
-        
-        # Clip gradients to avoid exploding gradients
+    
+        # Optionally clip gradients to avoid exploding gradients
         if self.critic_clip is not None:
             torch.nn.utils.clip_grad_norm_(self.critic.parameters(), max_norm=self.critic_clip)
-        
+    
         self.critic_optimizer.step()
-        
-        # Update actor (gradient ascent)
+    
+        # --- Actor Update ---
+        # Actor aims to maximize Q(state, actor(state)) => we do gradient ascent (negative sign for descent)
         actor_loss = -self.critic(state, self.actor(state)).mean()
+    
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
-
-        if DEBUG:
-            for name, param in self.actor.named_parameters():
-                if param.grad is not None:
-                    print(f"[{self.agent_id}] Actor gradient {name}: {param.grad.abs().mean().item()}")
-
         self.actor_optimizer.step()
-            
+    
         # Soft update target networks
         self.soft_update(self.actor, self.actor_target)
         self.soft_update(self.critic, self.critic_target)
-            
+    
+        # --- Compute TD Errors for Prioritized Replay ---
+        # We do this after the backward pass so it doesn't affect training computations
+        with torch.no_grad():
+            # Absolute difference between current_Q and target for each sample
+            # Shape: [batch_size, 1]
+            td_error = torch.abs(current_Q - target).squeeze(1)  # => [batch_size]
+    
         metrics = {
             "critic_loss": critic_loss.item(),
             "current_Q_mean": current_Q.mean().item(),
             "target_Q_mean": target_Q.mean().item(),
-            "reward_mean": reward.mean().item(),
-            "reward_mean": reward.mean().item(),
             "actor_loss": actor_loss.item(),
+            "batch_reward_mean": reward_log[0],
+            "batch_reward_std": reward_log[1],
+            "batch_reward_min": reward_log[2],
+            "batch_reward_max": reward_log[3],
+            "td_error": td_error.detach().cpu().numpy(),
+            "td_error_mean": td_error.mean().item(),
+            "td_error_std": td_error.std().item(),
+
+            # ✅ Diagnostic metrics:
+            "state_mean": state.mean().item(),
+            "state_std": state.std().item(),
+            "action_mean": action.mean().item(),
+            "action_std": action.std().item(),
+            "target_Q_std": target_Q.std().item(),
+            "current_Q_min": current_Q.min().item(),
+            "current_Q_max": current_Q.max().item(),
         }
-        
+    
         return metrics
+
 
     def soft_update(self, net, target_net):
         """
@@ -240,4 +285,4 @@ class DDPGAgent:
         target_param = tau * param + (1 - tau) * target_param
         """
         for param, target_param in zip(net.parameters(), target_net.parameters()):
-            target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
+            target_param.data.copy_(self.tau * param.data + (1.0 - self.tau) * target_param.data)

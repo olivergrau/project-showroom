@@ -45,8 +45,13 @@ class SACAgent:
         print(f"{self.agent_id}: Using critic hidden size: {critic_hidden_size}")
         print(f"{self.agent_id}: Using actor learning rate: {lr_actor}")
         print(f"{self.agent_id}: Using critic learning rate: {lr_critic}")
-        print(f"{self.agent_id}: Using alpha learning rate: {lr_alpha}")
-        print(f"{self.agent_id}: Using static alpha: {fixed_alpha}")
+        
+        if fixed_alpha is None:
+            print(f"{self.agent_id}: Using alpha learning rate: {lr_alpha}")
+        
+        if fixed_alpha is not None:
+            print(f"{self.agent_id}: Using fixed alpha: {fixed_alpha}")
+        
         print(f"{self.agent_id}: Using target entropy: {target_entropy}")
         print()
 

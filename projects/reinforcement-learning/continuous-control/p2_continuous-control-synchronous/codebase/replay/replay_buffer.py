@@ -175,8 +175,18 @@ class PrioritizedReplay(UniformReplay):
         self.max_priority = 1
 
     def feed(self, data):
+        #super().feed(data)
+        #self.tree.add(self.max_priority, None)
+        
+        # Optimized version
+        num_transitions = len(next(iter(data.values())))  # e.g., len(data['reward'])
         super().feed(data)
-        self.tree.add(self.max_priority, None)
+
+        for _ in range(num_transitions):
+            self.tree.add(self.max_priority, None)
+
+        assert self.tree.n_entries == self.size(), "Priority tree and buffer size out of sync!"
+
 
     def sample(self, batch_size=None):
         if batch_size is None:

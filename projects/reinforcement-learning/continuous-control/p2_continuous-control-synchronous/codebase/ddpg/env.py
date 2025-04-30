@@ -3,7 +3,7 @@ import subprocess
 from unityagents import UnityEnvironment
 import gc
 
-class EnvWrapper:
+class BootstrappedEnvironment:
     def __init__(self, exe_path, worker_id=0, use_graphics=False, preprocess_fn=None, max_retries=5, retry_delay=2):
         """
         Initialize the Unity environment wrapper.
@@ -19,7 +19,7 @@ class EnvWrapper:
         try:
             self.env = UnityEnvironment(file_name=self.exe_path, no_graphics=not self.use_graphics, worker_id=self.worker_id)
         except Exception as e:
-            print(f"[EnvWrapper] Failed to initialize UnityEnvironment (worker_id: {self.worker_id}): {e}")
+            print(f"[BootstrappedEnvironment] Failed to initialize UnityEnvironment (worker_id: {self.worker_id}): {e}")
             self.env = None
             raise
 
@@ -37,7 +37,7 @@ class EnvWrapper:
                 
                 return raw_state
             except Exception as e:
-                print(f"[EnvWrapper] Error during reset: {e}. Attempt {attempt + 1}/{self.max_retries}. Retrying in {self.retry_delay} seconds...")
+                print(f"[BootstrappedEnvironment] Error during reset: {e}. Attempt {attempt + 1}/{self.max_retries}. Retrying in {self.retry_delay} seconds...")
                 attempt += 1
                 time.sleep(self.retry_delay)
         
@@ -58,7 +58,7 @@ class EnvWrapper:
             
             return next_state, reward, done
         except Exception as e:
-            print(f"[EnvWrapper] Error during step: {e}. Attempting to close environment.")
+            print(f"[BootstrappedEnvironment] Error during step: {e}. Attempting to close environment.")
             self.close()
             raise
 
@@ -74,13 +74,13 @@ class EnvWrapper:
                                 
                 gc.collect()
 
-                print("[EnvWrapper] Waiting 10 seconds for closing the environment...")
-                time.sleep(10)
+                print("[BootstrappedEnvironment] Waiting 5 seconds for closing the environment...")
+                time.sleep(5)
                 
                 self._wipe_unity_processes()
-                print("[EnvWrapper] Unity environment closed and processes wiped successfully.")
+                print("[BootstrappedEnvironment] Unity environment closed and processes wiped successfully.")
             except Exception as e:
-                print(f"[EnvWrapper] Error while closing Unity environment: {e}")
+                print(f"[BootstrappedEnvironment] Error while closing Unity environment: {e}")
 
     def _wipe_unity_processes(self):
         """
@@ -91,9 +91,9 @@ class EnvWrapper:
             # Using pkill with the exe_path should kill any process that was started with that executable.
             subprocess.call(["pkill", "-f", self.exe_path])
             time.sleep(5)
-            print("[EnvWrapper] Successfully wiped Unity processes from OS.")
+            print("[BootstrappedEnvironment] Successfully wiped Unity processes from OS.")
         except Exception as e:
-            print(f"[EnvWrapper] Error while wiping Unity processes: {e}")
+            print(f"[BootstrappedEnvironment] Error while wiping Unity processes: {e}")
 
     def __enter__(self):
         return self

@@ -1,32 +1,18 @@
-"""
-training.py
-
-A complete synchronous training loop for DDPG on the Unity Reacher environment.
-This script ties together the environment wrapper, DDPGAgent, replay buffer, and
-a running state normalizer into one main loop. It includes robust error handling to
-ensure the Unity environment is properly shut down if any error occurs.
-"""
-
 import os
 import time
 import numpy as np
 import torch
 import traceback
-from collections import namedtuple
-
-import optuna
-from optuna.exceptions import TrialPruned
-
-from codebase.ddpg.agent import DDPGAgent
-from codebase.utils.normalizer import RunningNormalizer
-from codebase.ddpg.env import EnvWrapper
-from codebase.ddpg.eval import evaluate
-from codebase.replay.replay_buffer import UniformReplay
-from codebase.utils.early_stopping import EarlyStopping
-
+from dataclasses import dataclass, field
+from typing import Optional, Protocol
 from torch.utils.tensorboard import SummaryWriter
-
-device = "cuda" if torch.cuda.is_available() else "cpu"
+from codebase.ddpg.agent import DDPGAgent
+from codebase.ddpg.env import BootstrappedEnvironment
+from codebase.ddpg.eval import evaluate
+from codebase.replay.replay_buffer import PrioritizedReplay, UniformReplay
+from codebase.utils.normalizer import RunningNormalizer
+from codebase.utils.early_stopping import EarlyStopping
+from optuna.exceptions import TrialPruned
 
 # For older numpy versions
 if not hasattr(np, "float_"):
@@ -34,330 +20,396 @@ if not hasattr(np, "float_"):
 if not hasattr(np, "int_"):
     np.int_ = np.int64
 
+LOG_FREQ = 100
 
-def convert_batch_to_tensor(batch, device):
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+def convert_batch_to_tensor(batch, device, beta=0.4, use_priorities=False):
     """
-    Converts each field in the sampled batch from numpy arrays to torch tensors.
-    
-    Args:
-        batch: A Transition namedtuple containing numpy arrays.
-        device: The torch device to move the tensors to.
-    
-    Returns:
-        A Transition namedtuple where each field is a torch tensor.
+    Converts a batch of transitions to torch tensors.
     """
     state = torch.as_tensor(batch.state, dtype=torch.float32, device=device)
     action = torch.as_tensor(batch.action, dtype=torch.float32, device=device)
     reward = torch.as_tensor(batch.reward, dtype=torch.float32, device=device)
     next_state = torch.as_tensor(batch.next_state, dtype=torch.float32, device=device)
     mask = torch.as_tensor(batch.mask, dtype=torch.float32, device=device)
-    
+
     Transition = type(batch) # Remember batch is a namedtuple
-    return Transition(state, action, reward, next_state, mask)
-
-
-def train(
-    state_size=33,
-    action_size=4,
-    episodes=1000,             # Total training episodes
-    max_steps=1000,            # Maximum steps per episode
-    batch_size=256,            # Batch size for learning
-    gamma=0.99,                # Discount factor
-    actor_input_size=400,      # Actor input layer size
-    actor_hidden_size=300,     # Actor hidden layer size
-    critic_input_size=400,     # Critic input layer size
-    critic_hidden_size=300,    # Critic hidden layer size
-    lr_actor=2e-4,             # Actor learning rate
-    lr_critic=2e-4,            # Critic learning rate
-    critic_clip=None,          # Gradient clipping for critic
-    critic_weight_decay=1e-4,  # L2 weight decay for critic
-    tau=0.005,                 # Soft update parameter for target networks
-    use_ou_noise=True,         # Enable Ornstein-Uhlenbeck noise      
-    ou_noise_theta=0.15,       # Noise theta parameter
-    ou_noise_sigma=0.2,        # Noise sigma parameter  
-    initial_noise_scaling_factor=0.3,  # Initial exploration noise factor
-    min_noise_scaling_factor=0.05,     # Minimum noise scaling factor after decay
-    noise_decay_rate=0.99,     # Decay rate per episode for noise scaling factor
-    replay_capacity=1000000,    # Replay buffer capacity
-    eval_frequency=10,         # Evaluate every 10 episodes
-    eval_episodes=5,           # Run 5 episodes per evaluation
-    eval_threshold=30.0,       # Target average reward to consider environment solved
-    unity_worker_id=1,
-    use_state_norm=False,       # Enable state normalization
-    use_reward_scaling=False,  # Enable reward scaling
-    reward_scaling_factor=1.0, # Scaling factor (default: 1.0, i.e. no scaling)
-    use_reward_normalization=False,  # Enable reward normalization
-    env_steps_per_update=20,   # Number of environment steps to collect before updates
-    updates_per_block=10,      # Number of learning updates to perform after env_steps_per_update
-    trial=None               # Optional Optuna trial for pruning; default is None
-):
-    LOG_FREQ = 100  # Log metrics every LOG_FREQ steps
-
-    print(f"Training with hyperparameters:")
-    print(f"  Episodes: {episodes}")
-    print(f"  Max Steps: {max_steps}")
-    print(f"  Batch Size: {batch_size}")
-    print(f"  Gamma: {gamma}")
-    print(f"  Actor Input Size: {actor_input_size}")
-    print(f"  Actor Hidden Size: {actor_hidden_size}")
-    print(f"  Critic Input Size: {critic_input_size}")
-    print(f"  Critic Hidden Size: {critic_hidden_size}")
-    print(f"  Actor LR: {lr_actor}")
-    print(f"  Critic LR: {lr_critic}")
-    print(f"  Critic Clip: {critic_clip}")
-    print(f"  Critic Weight Decay: {critic_weight_decay}")
-    print(f"  Tau: {tau}")
-    print(f"  Initial Noise Scaling Factor: {initial_noise_scaling_factor}")
-    print(f"  Min Noise Scaling Factor: {min_noise_scaling_factor}")
-    print(f"  Noise Decay Rate: {noise_decay_rate}")
-    print(f"  Replay Capacity: {replay_capacity}")
-    print(f"  Evaluation Frequency: {eval_frequency}")
-    print(f"  Evaluation Episodes: {eval_episodes}")
-    print(f"  Evaluation Threshold: {eval_threshold}")
-    print(f"  Use Reward Scaling: {use_reward_scaling}")
-    print(f"  Reward Scaling Factor: {reward_scaling_factor}")
-    print(f"  Use Reward Normalization: {use_reward_normalization}")
-    print(f"  Env Steps per Update Block: {env_steps_per_update}")
-    print(f"  Updates per Block: {updates_per_block}")
-    print(f"  Use State Normalization: {use_state_norm}")
-    print(f"  Use Ornstein-Uhlenbeck Noise: {use_ou_noise}")
-    print(f"  OU Noise Theta: {ou_noise_theta}")
-    print(f"  OU Noise Sigma: {ou_noise_sigma}")    
-
-    # Early stopping based on evaluation reward.
-    early_stopping = EarlyStopping(patience=20, min_delta=0.2, verbose=True)
-
-    # TensorBoard logging directory.
-    log_dir = os.path.join("runs", "train_ddpg", time.strftime("%Y-%m-%d_%H-%M-%S"))
-    writer = SummaryWriter(log_dir=log_dir)
     
-    exe_path = "Reacher_Linux/Reacher.x86_64"
+    if use_priorities:
+        sampling_prob = torch.as_tensor(batch.sampling_prob, dtype=torch.float32, device=device)
+        idx = torch.as_tensor(batch.idx, dtype=torch.int64, device=device)
+
+        # Compute importance sampling weights
+        weights = (1.0 / (sampling_prob + 1e-8))  # avoid div by zero
+        weights /= weights.max()  # normalize to 1
+        weights = weights.pow(beta)
+
+        Transition = Transition(state, action, reward, next_state, mask, sampling_prob, idx)
+
+    else:
+        Transition = Transition(state, action, reward, next_state, mask)
     
-    # Variables for actor loss plateau detection.
-    previous_avg_actor_loss = None
-    plateau_counter = 0
-    plateau_threshold = 1e-3  # If the change is less than this, actor loss is considered plateaued.
-    actor_loss_window = []       # List to store recent actor losses.
-    actor_loss_window_size = 10  # Number of recent updates to average.
-    actor_loss_counter = 0       # Counter for insufficient actor loss (if too high).
-    actor_loss_patience = 10      # Number of evaluations to tolerate insufficient actor loss.
-    plateau_patience = 20
-    min_actor_threshold = -0.2   # Minimum (more negative) threshold for acceptable actor loss.
+    return (Transition, weights) if use_priorities else Transition
 
-    # For reward normalization, we use a simple running statistic.
-    reward_stats = {"mean": 0.0, "var": 1.0, "count": 0}
+# Scheduling interface
+class UpdateScheduler(Protocol):
+    def interval(self, total_steps: int) -> int:
+        ...
 
-    try:
-        with EnvWrapper(exe_path, worker_id=unity_worker_id, use_graphics=False) as env:
-            agent = DDPGAgent(
-                state_size=state_size,
-                action_size=action_size,
-                lr_actor=lr_actor,
-                lr_critic=lr_critic,
-                gamma=gamma,
-                tau=tau,
-                critic_clip=critic_clip,
-                critic_weight_decay=critic_weight_decay,
-                use_ou_noise=use_ou_noise,
-                ou_noise_theta=ou_noise_theta,
-                ou_noise_sigma=ou_noise_sigma,
-                actor_input_size=actor_input_size,
-                actor_hidden_size=actor_hidden_size,
-                critic_input_size=critic_input_size,
-                critic_hidden_size=critic_hidden_size,
+@dataclass
+class DynamicUpdateScheduler:
+    switch_step: int
+    early_interval: int
+    late_interval: int
+
+    def interval(self, total_steps: int) -> int:
+        return self.early_interval if total_steps < self.switch_step else self.late_interval
+
+@dataclass
+class TrainingConfig:
+    # --- Environment and agent configuration ---
+    num_agents: int = 20               # Number of parallel agents (e.g., 20 for Unity Reacher)
+    state_size: int = 33              # Dimension of the state space
+    action_size: int = 4              # Dimension of the action space
+    gamma: float = 0.99               # Discount factor for future rewards
+
+    # --- Training schedule ---
+    episodes: int = 1000              # Total number of training episodes
+    max_steps: int = 1000             # Max steps per episode
+    batch_size: int = 256             # Number of samples per learning update
+    learn_after: int = 15000           # Delay learning until this many total env steps
+    sampling_warmup: int = 20000      # Use random actions for the first N steps
+
+    # --- Learning rates and optimization ---
+    lr_actor: float = 1e-3            # Learning rate for the actor network
+    lr_critic: float = 1e-3           # Learning rate for the critic network
+    critic_weight_decay = 1e-4        # L2 regularization for critic optimizer
+    critic_clipnorm: float = 1.0      # Max norm for critic gradient clipping
+
+    # --- Target network soft updates ---
+    tau: float = 0.005                # Polyak averaging factor for target networks
+
+    # --- Exploration (OU noise) ---
+    use_ou_noise: bool = True         # Whether to use Ornstein-Uhlenbeck noise
+    ou_theta: float = 0.15            # OU noise: theta (mean reversion)
+    ou_sigma: float = 0.2             # OU noise: sigma (volatility)
+    init_noise: float = 1.0           # Initial scaling factor for exploration noise
+    min_noise: float = 0.05           # Minimum noise after decay  
+
+    # --- Evaluation ---
+    eval_freq: int = 20               # Evaluate every N episodes
+    eval_eps: int = 1                 # Number of evaluation episodes per evaluation step
+    eval_thresh: float = 30.0         # Consider environment solved at this average reward
+    eval_warmup: int = 50             # Start evaluation only after this many episodes
+
+    # --- Replay buffer ---
+    replay_capacity: int = 1_000_000  # Total capacity of the replay buffer
+    
+    # Probability to retain a 0-reward transition
+    zero_reward_prob_start: float = 0.0
+    zero_reward_prob_end: float = 0.2
+    zero_reward_prob_anneal_steps: int = 200_000
+
+    # --- Replay buffer prioritization (PER) ---
+    use_prioritized_replay: bool = False  # Use prioritized replay (instead of uniform)
+    per_beta_start: float = 0.4  # initial beta
+    per_beta_end: float = 1.0    # final beta (fully corrects sampling bias)
+    per_beta_anneal_steps: int = 500_000  # how many steps to anneal over (you can tune this)
+
+    # --- Reward preprocessing ---
+    use_state_norm: bool = False     # Normalize states before feeding to actor/critic
+    use_reward_scaling: bool = False # Multiply rewards by reward_scale
+    reward_scale: float = 1.0        # Reward scaling factor (if enabled)
+    use_reward_norm: bool = False    # Normalize rewards (Welford's algorithm)
+
+    # --- Learning schedule ---
+    scheduler: UpdateScheduler = field(default_factory=lambda: DynamicUpdateScheduler(40000, 10, 1))
+    updates_per_block: int = 1       # Number of updates per learning trigger
+
+    # --- Other ---
+    worker_id: int = 1               # Unity worker ID (avoid conflicts when launching multiple environments)
+    load_weights: Optional[str] = None  # Path to pretrained weights to resume training
+    trial: Optional[object] = None       # Optional Optuna trial object for hyperparameter tuning/pruning
+
+class TrainingRunner:
+    def __init__(self, cfg: TrainingConfig):
+        self.cfg = cfg
+        self.writer = SummaryWriter(log_dir=os.path.join("runs/train_ddpg", time.strftime("%Y-%m-%d_%H-%M-%S")))
+        self.early_stop = EarlyStopping(patience=20, min_delta=0.01, verbose=True,
+                                        zero_patience=10, actor_patience=8, actor_min_delta=0.005)
+        self.reward_stats = {"mean": 0.0, "var": 1.0, "count": 0}
+        self._build_components()
+
+    def _build_components(self):
+        cfg = self.cfg
+                
+        # Environment
+        self.env = BootstrappedEnvironment(
+            exe_path="Reacher_Linux/Reacher.x86_64",
+            worker_id=cfg.worker_id,
+            use_graphics=False
+        )
+
+        # Agent
+        self.agent = DDPGAgent(
+            state_size=cfg.state_size,
+            action_size=cfg.action_size,
+            lr_actor=cfg.lr_actor,
+            lr_critic=cfg.lr_critic,
+            gamma=cfg.gamma,
+            tau=cfg.tau,
+            use_ou_noise=cfg.use_ou_noise,
+            ou_noise_theta=cfg.ou_theta,
+            ou_noise_sigma=cfg.ou_sigma,
+            critic_weight_decay=cfg.critic_weight_decay,
+            critic_clip_norm=cfg.critic_clipnorm,
+            use_prioritized_replay=cfg.use_prioritized_replay,
+            use_batch_norm=False
+        )
+
+        if cfg.load_weights:
+            data = torch.load(cfg.load_weights, map_location=device)
+            for net in ['actor', 'actor_target', 'critic', 'critic_target']:
+                getattr(self.agent, net).load_state_dict(data[net])
+            cfg.sampling_warmup = 0
+        
+        # Replay buffer
+        replay_args = dict(memory_size=cfg.replay_capacity,
+                           batch_size=cfg.batch_size,
+                           discount=cfg.gamma, n_step=1, history_length=1)
+        self.buffer = PrioritizedReplay(**replay_args) if cfg.use_prioritized_replay else UniformReplay(**replay_args)
+        
+        # State normalizer
+        self.norm = RunningNormalizer((cfg.state_size,), momentum=0.001) if cfg.use_state_norm else None
+        
+        # Noise scheduler
+        self.noise_lambda = -np.log(cfg.min_noise / cfg.init_noise) / cfg.episodes
+
+    def run(self) -> float:
+        avg_reward = 0.0
+        total_steps = 0
+        train_iterations = 0
+
+        try:
+            with self.env as env:
+                for ep in range(1, self.cfg.episodes + 1):
+                    noise_scale = max(self.cfg.min_noise,
+                                      self.cfg.init_noise * np.exp(-self.noise_lambda * ep))
+                    self.writer.add_scalar("Env/NoiseScale", noise_scale, ep)
+
+                    ep_reward, total_steps, train_iterations = self._run_episode(
+                        env, ep, total_steps, train_iterations, noise_scale
+                    )
+                    self.writer.add_scalar("Episode/Reward", ep_reward, ep)
+                    print(f"Episode {ep} | Reward {ep_reward:.2f} | Steps {total_steps} | Updates {train_iterations}")
+
+                    # Evaluation block
+                    if ep % self.cfg.eval_freq == 0 and ep > self.cfg.eval_warmup:
+                        print(f"Evaluating agent at episode {ep}...")
+                        try:
+                            avg_eval_reward, solved = evaluate(
+                                self.agent, env,
+                                normalizer=self.norm,
+                                episodes=self.cfg.eval_eps,
+                                threshold=self.cfg.eval_thresh
+                            )
+                            self.writer.add_scalar("Eval/AverageReward", avg_eval_reward, ep)
+                            print(f"Eval at ep {ep}: avg reward = {avg_eval_reward:.2f}")
+
+                            # Save weights
+                            save_dir = os.path.join("saved_weights", "train_ddpg")
+                            os.makedirs(save_dir, exist_ok=True)
+                            weights = extract_agent_weights(self.agent)
+                            fname = f"ddpg_weights_ep_{ep}_{time.strftime('%Y-%m-%d_%H-%M-%S')}.pth"
+                            torch.save(weights, os.path.join(save_dir, fname))
+                            print(f"Saved weights: {fname}")
+
+                            # Optuna pruning
+                            if self.cfg.trial is not None:
+                                self.cfg.trial.report(-avg_eval_reward, ep)
+                                if self.cfg.trial.should_prune():
+                                    print(f"Trial pruned at episode {ep}")
+                                    raise TrialPruned()
+
+                            if solved:
+                                print("Environment solved! Stopping training.")
+                                break
+
+                            if self.early_stop.stepAvgReward(avg_eval_reward):
+                                print("Early stopping triggered by eval reward. Stopping training.")
+                                break
+
+                        except Exception as eval_e:
+                            print(f"[Training] Evaluation failed at episode {ep}: {eval_e}")
+
+        except Exception as e:
+            print(f"[Training] Fatal error: {e}")
+            traceback.print_exc()
+
+        finally:
+            self.writer.close()
+            self.env.close()
+            print("[Training] Completed. Unity closed.")
+
+        return avg_reward
+
+    # Modified _run_episode method with per-agent transition handling for sparse reward learning
+    def _run_episode(self, env, episode: int, total_steps: int, train_iters: int, noise_scale: float):
+        cfg = self.cfg
+        state = env.reset(train_mode=True)
+        self.agent.reset_noise()
+        ep_reward = 0.0
+        steps_since_update = 0
+
+        for step in range(cfg.max_steps):
+            total_steps += 1
+            steps_since_update += 1
+
+            norm_state = self.norm.normalize(state) if self.norm else state
+            if total_steps < cfg.sampling_warmup:
+                action = np.random.uniform(-1, 1, (cfg.num_agents, cfg.action_size))
+            else:
+                action = self.agent.act(norm_state, noise=noise_scale)
+
+            next_state, reward, dones = env.step(action)
+
+            if self.norm:
+                self.norm.update(state)
+
+            # Ensure rewards are NumPy array
+            reward = np.array(reward, dtype=np.float64)
+
+            # Clip rewards per agent
+            reward = np.clip(reward, -1.0, 1.0)
+
+            # Optionally scale
+            if cfg.use_reward_scaling:
+                reward *= cfg.reward_scale
+
+            # Optional reward normalization
+            if cfg.use_reward_norm:
+                n = reward.size
+                rs = self.reward_stats
+                old_c = rs["count"]
+                new_c = old_c + n
+                new_mean = (old_c * rs["mean"] + reward.sum()) / new_c
+                new_var = ((old_c * (rs["var"] + rs["mean"]**2) + (reward**2).sum()) / new_c) - new_mean**2
+                rs.update(mean=new_mean, var=(new_var if new_var > 0 else 1.0), count=new_c)
+                reward = (reward - rs["mean"]) / (np.sqrt(rs["var"])+1e-8)
+
+            # Sum mean reward for logging
+            ep_reward += np.mean(reward)
+            mask = np.array([0 if d else 1 for d in dones], dtype=np.float32)
+
+            anneal_frac = min(1.0, total_steps / cfg.zero_reward_prob_anneal_steps)
+            zero_reward_prob = (
+                cfg.zero_reward_prob_start
+                + anneal_frac * (cfg.zero_reward_prob_end - cfg.zero_reward_prob_start)
             )
 
-            replay_kwargs = {
-                'memory_size': replay_capacity,
-                'batch_size': batch_size,
-                'discount': gamma,
-                'n_step': 1,
-                'history_length': 1
-            }
-
-            buffer = UniformReplay(**replay_kwargs)
-            normalizer = RunningNormalizer(shape=(state_size,), momentum=0.001) if use_state_norm else None
-            
-            total_steps = 0
-            train_iter = 0  # Counter for learning iterations
-            env_steps_since_update = 0  # Counter for environment steps since last update block
-            
-            # Set initial noise scaling factor
-            current_noise_scaling = initial_noise_scaling_factor
-
-            for episode in range(1, episodes + 1):
-                # Decay noise scaling factor per episode.
-                current_noise_scaling = max(min_noise_scaling_factor,
-                                            initial_noise_scaling_factor * (noise_decay_rate ** episode))
-
-                writer.add_scalar("Env/Exploration_Noise", current_noise_scaling, episode)
-
-                try:
-                    state = env.reset(train_mode=True)
-                except Exception as e:
-                    print(f"[Training] Failed to reset environment on episode {episode}: {e}")
-                    raise
-
-                episode_reward = 0.0
-                env_steps_since_update = 0  # Reset per episode
-
-                agent.reset_noise()
-                for step in range(max_steps):
-                    total_steps += 1
-                    env_steps_since_update += 1                    
-
-                    try:
-                        norm_state = normalizer.normalize(state) if normalizer is not None else state
-                        action = agent.act(norm_state, noise=current_noise_scaling)
-                        next_state, reward, done_flags = env.step(action)
-                    except Exception as e:
-                        print(f"[Training] Error during step {step} in episode {episode}: {e}")
-                        raise
-
-                    if normalizer is not None:
-                        normalizer.update(state)
-
-                    # --- Reward Scaling ---
-                    if use_reward_scaling:
-                        reward = np.array(reward) * reward_scaling_factor
-
-                    # --- Reward Normalization --- (Welford's algorithm style)
-                    if use_reward_normalization:
-                        reward = np.array(reward)
-                        n = len(reward)
-                        old_count = reward_stats["count"]
-                        new_count = old_count + n
-                        new_mean = (old_count * reward_stats["mean"] + np.sum(reward)) / new_count
-                        new_var = ((old_count * (reward_stats["var"] + reward_stats["mean"]**2) + np.sum(reward**2)) / new_count) - new_mean**2
-                        reward_stats["mean"] = new_mean
-                        reward_stats["var"] = new_var if new_var > 0 else 1.0
-                        reward_stats["count"] = new_count
-                        reward = (reward - reward_stats["mean"]) / (np.sqrt(reward_stats["var"]) + 1e-8)
-                    
-                    episode_reward += np.mean(reward)
-                    mask = [0 if d else 1 for d in done_flags]
-                    
-                    buffer.feed({
-                        'state': state,
-                        'action': action,
-                        'reward': reward,
-                        'next_state': next_state,
-                        'mask': mask
+            # --- Feed each agent's transition independently ---
+            for i in range(cfg.num_agents):
+                keep = True
+                if np.abs(reward[i]) < 1e-6 and np.random.rand() > zero_reward_prob:
+                    keep = False
+                if keep:
+                    self.buffer.feed({
+                        'state': [state[i]],            # wrap into list
+                        'action': [action[i]],           # wrap into list
+                        'reward': [reward[i]],           # wrap into list
+                        'next_state': [next_state[i]],   # wrap into list
+                        'mask': [mask[i]],               # wrap into list
                     })
 
-                    state = next_state
+            # --- Trigger learning ---
+            interval = cfg.scheduler.interval(total_steps)
+            if total_steps >= cfg.learn_after and self.buffer.size() >= cfg.batch_size and steps_since_update >= interval:
+                train_iters = self._learn_block(train_iters, total_steps)
+                steps_since_update = 0
 
-                    if step % LOG_FREQ == 0:
-                        writer.add_scalar("ReplayBuffer/Size", buffer.size(), train_iter)
-                    
-                    if all(done_flags):
-                        break
+            # --- Logging ---
+            if step % LOG_FREQ == 0:
+                self.writer.add_scalar("ReplayBuffer/Size", self.buffer.size(), train_iters)
+                self.writer.add_scalar("ReplayBuffer/ZeroRewardProb", zero_reward_prob, train_iters)
 
-                    # Instead of updating at every timestep, update after env_steps_per_update steps
-                    if env_steps_since_update >= env_steps_per_update and buffer.size() >= batch_size:                        
-                        for _ in range(updates_per_block):
-                            batch = buffer.sample()
-                            batch = convert_batch_to_tensor(batch, device=agent.device)
-                            metrics = agent.learn(batch)
-                            train_iter += 1
-                            
-                            if train_iter % LOG_FREQ == 0:
-                                writer.add_scalar("Loss/Critic", metrics["critic_loss"], train_iter)
-                                writer.add_scalar("Loss/Actor", metrics["actor_loss"], train_iter)
-                                writer.add_scalar("Q-values/Current", metrics["current_Q_mean"], train_iter)
-                                writer.add_scalar("Q-values/Target", metrics["target_Q_mean"], train_iter)
-                            
-                            actor_loss_window.append(metrics["actor_loss"])
-                            
-                            if len(actor_loss_window) > actor_loss_window_size:
-                                actor_loss_window = actor_loss_window[-actor_loss_window_size:]
-                        
-                        env_steps_since_update = 0  # Reset the counter after the update block
-    
-                writer.add_scalar("Episode/Reward", episode_reward, episode)
-                print(f"Episode {episode:4d} | Average Reward: {episode_reward:7.2f} | Total Steps: {total_steps}")
+                if self.buffer.size() > 0:
+                    # Extract rewards from the buffer
+                    rewards = np.array(self.buffer.reward[:self.buffer.size()])
 
-                # Evaluation block every eval_frequency episodes
-                if episode % eval_frequency == 0:
-                    try:
-                        avg_reward, solved = evaluate(agent, env, normalizer=normalizer,
-                                                      episodes=eval_episodes, threshold=eval_threshold)  # in evaluation, no reward scaling/norm is necessary
-                        
-                        writer.add_scalar("Eval/AverageReward", avg_reward, episode)
-                        print(f"Evaluation at training episode {episode}: Sliding window avg reward = {avg_reward:.2f}")
-                        
-                        # Compute average actor loss from the sliding window.
-                        if len(actor_loss_window) > 0:
-                            avg_actor_loss = np.mean(actor_loss_window)
-                        else:
-                            avg_actor_loss = float('inf')
-                        
-                        print(f"Average actor loss over last {actor_loss_window_size} updates: {avg_actor_loss:.4f}")
+                    reward_mean = np.mean(rewards)
+                    reward_std = np.std(rewards)
 
-                        # --- Pruning: Report one metric using different step numbers ---
-                        if trial is not None:
-                            # Report negative evaluation reward (since higher reward is better) at an even step.
-                            report_step_reward = episode # * 2
-                            trial.report(-avg_reward, report_step_reward)
-                            if trial.should_prune():
-                                print(f"Trial pruned at episode {episode} due to insufficient evaluation reward improvement.")
-                                raise TrialPruned()
+                    self.writer.add_scalar("ReplayBuffer/Reward/Mean", reward_mean, train_iters)
+                    self.writer.add_scalar("ReplayBuffer/Reward/Std", reward_std, train_iters)
 
-                        # First, check if actor loss is insufficient (too high).
-                        if avg_actor_loss > 0 or avg_actor_loss > min_actor_threshold:
-                            actor_loss_counter += 1
-                            print(f"Actor loss insufficient. Counter: {actor_loss_counter} / {actor_loss_patience}")
-                        else:
-                            actor_loss_counter = 0
+                    self.writer.add_histogram("ReplayBuffer/RewardDistribution", rewards, train_iters)
 
-                        # Now, check for plateau in actor loss.
-                        if previous_avg_actor_loss is not None:
-                            if abs(avg_actor_loss - previous_avg_actor_loss) < plateau_threshold:
-                                plateau_counter += 1
-                                print(f"Actor loss plateau detected. Plateau counter: {plateau_counter}")
-                            else:
-                                plateau_counter = 0
-                        previous_avg_actor_loss = avg_actor_loss
-                        
-                        # If plateau persists over plateau_patience evaluations, early stop.
-                        if plateau_counter >= plateau_patience:
-                            print(f"Actor loss has plateaued over {plateau_patience} evaluations. Early stopping triggered.")
-                            break
+            state = next_state
+            if all(dones):
+                break
 
-                        if solved:
-                            print("Environment solved! Stopping training early.")
-                            new_weights = extract_agent_weights(agent)
-                            save_path = "ddpg_agent_weights_solved.pth"
-                            torch.save(new_weights, save_path)
-                            print(f"Saved agent weights to {save_path}")
-                            break
+        return ep_reward, total_steps, train_iters
 
-                        if actor_loss_counter >= actor_loss_patience:
-                            print("Actor loss early stopping triggered. Stopping training.")
-                            break
-                            
-                        if early_stopping.step(avg_reward):
-                            print("Early stopping triggered (evaluation reward). Stopping training.")
-                            break
-                        
-                    except Exception as eval_e:
-                        print(f"[Training] Evaluation failed at episode {episode}: {eval_e}")
-                        # Optionally, decide whether to continue or break.
-    
-    except Exception as e:
-        print(f"[Training] An error occurred during training: {e}")
-        traceback.print_exc()
-    
-    finally:
-        try:
-            env.close()
-        except Exception:
-            pass
+    def _learn_block(self, train_iters: int, total_steps: int) -> int:
+        cfg = self.cfg
         
-        writer.close()
-        print("[Training] Training process terminated. Unity environment shut down.")
-    
-    return avg_reward
+        for _ in range(cfg.updates_per_block):
+            batch = self.buffer.sample()
+
+            idxs = getattr(batch, 'idx', None)
+            
+            if cfg.use_prioritized_replay:
+                # Linear annealing of beta
+                anneal_fraction = min(1.0, total_steps / cfg.per_beta_anneal_steps)
+                beta = cfg.per_beta_start + anneal_fraction * (cfg.per_beta_end - cfg.per_beta_start)
+
+                self.writer.add_scalar("Debug/PER/Beta", beta, train_iters)
+
+                batch, is_weights = convert_batch_to_tensor(batch, device=self.agent.device, use_priorities=True, beta=beta)
+            else:
+                batch = convert_batch_to_tensor(batch, device=self.agent.device, use_priorities=False)
+                is_weights = None
+            
+            metrics = self.agent.learn(batch, is_weights)
+            
+            if train_iters % LOG_FREQ == 0:
+                self.writer.add_scalar("Loss/Critic", metrics["critic_loss"], train_iters)
+                self.writer.add_scalar("Loss/Actor", metrics["actor_loss"], train_iters)
+                self.writer.add_scalar("Q-values/Current", metrics["current_Q_mean"], train_iters)
+                self.writer.add_scalar("Q-values/Target", metrics["target_Q_mean"], train_iters)
+                self.writer.add_scalar("Training/batch_reward_mean", metrics["batch_reward_mean"], train_iters)
+                self.writer.add_scalar("Training/batch_reward_std", metrics["batch_reward_std"], train_iters)
+                self.writer.add_scalar("Training/batch_reward_max", metrics["batch_reward_max"], train_iters)
+                self.writer.add_scalar("Training/batch_reward_min", metrics["batch_reward_min"], train_iters)
+                self.writer.add_scalar("Training/TD_Error/Mean", metrics["td_error_mean"], train_iters)
+                self.writer.add_scalar("Training/TD_Error/Std", metrics["td_error_std"], train_iters)
+
+                # ✅ Additional debug metrics:
+                self.writer.add_scalar("Debug/StateMean", metrics["state_mean"], train_iters)
+                self.writer.add_scalar("Debug/StateStd", metrics["state_std"], train_iters)
+                self.writer.add_scalar("Debug/ActionMean", metrics["action_mean"], train_iters)
+                self.writer.add_scalar("Debug/ActionStd", metrics["action_std"], train_iters)
+                self.writer.add_scalar("Debug/TargetQStd", metrics["target_Q_std"], train_iters)
+                self.writer.add_scalar("Debug/CurrentQMin", metrics["current_Q_min"], train_iters)
+                self.writer.add_scalar("Debug/CurrentQMax", metrics["current_Q_max"], train_iters)
+                
+            train_iters += 1
+            
+            if idxs is not None:
+                eps = 1e-6
+                alpha = 0.6  # You can expose this as a hyperparameter if desired
+
+                updates = [(i, (float(td) + eps) ** alpha) for i, td in zip(idxs, metrics['td_error'])]
+                self.buffer.update_priorities(updates)
+                self.writer.add_scalar("ReplayBuffer/Priorities/Mean", np.mean([u[1] for u in updates]), train_iters)
+                
+                priorities = np.array([float(td) for td in metrics["td_error"]])
+                self.writer.add_histogram("ReplayBuffer/Priorities/TD_Error", priorities, train_iters)
+
+                self.writer.add_scalar("IS_Weights/Mean", is_weights.mean(), train_iters)
+
+        return train_iters
 
 
 def extract_agent_weights(agent):
@@ -369,42 +421,12 @@ def extract_agent_weights(agent):
     }
 
 
+def train(**kwargs) -> float:
+    cfg = TrainingConfig(**kwargs)
+    runner = TrainingRunner(cfg)
+    return runner.run()
+
 if __name__ == "__main__":
-    print("Training module DDPG loaded. Starting manual training run.")
-
-    avg_reward = train(
-        state_size=33,
-        action_size=4,
-        episodes=500,             # Total training episodes
-        max_steps=1000,            # Maximum steps per episode
-        batch_size=256,            # Batch size for learning
-        gamma=0.95,                # Discount factor
-        actor_input_size=128,      # Actor input layer size
-        actor_hidden_size=256,     # Actor hidden layer size
-        critic_input_size=128,     # Critic input layer size
-        critic_hidden_size=256,    # Critic hidden layer size
-        lr_actor=1e-4,             # Actor learning rate
-        lr_critic=3e-4,            # Critic learning rate
-        critic_clip=10,            # Gradient clipping for critic
-        critic_weight_decay=0.0,   # L2 weight decay for critic
-        tau=0.003,                 # Soft update parameter for target networks
-        use_ou_noise=False,         # Enable Ornstein-Uhlenbeck noise      
-        ou_noise_theta=0.15,       # Noise theta parameter
-        ou_noise_sigma=0.08,        # Noise sigma parameter  
-        initial_noise_scaling_factor=0.3,  # Initial exploration noise factor
-        min_noise_scaling_factor=0.05,     # Minimum noise scaling factor after decay
-        noise_decay_rate=0.99,     # Decay rate per episode for noise scaling factor
-        replay_capacity=int(1e6),       # Replay buffer capacity
-        eval_frequency=5,         # Evaluate every 10 episodes
-        eval_episodes=5,           # Run 5 episodes per evaluation
-        eval_threshold=30.0,       # Target average reward to consider environment solved
-        unity_worker_id=1,
-        use_state_norm=False,      # Enable state normalization
-        use_reward_scaling=False,  # Enable reward scaling
-        reward_scaling_factor=1.0, # Scaling factor (default: 1.0, i.e. no scaling)
-        use_reward_normalization=False,  # Enable reward normalization
-        env_steps_per_update=25,   # Number of environment steps to collect before updates (e.g., 20)
-        updates_per_block=9       # Number of learning updates to perform after env_steps_per_update (e.g., 10)
-    )
-
-    print(f"Training completed. Average reward: {avg_reward:.2f}")
+    print("Starting DDPG Training...")
+    result = train()
+    print(f"Done. Result: {result:.2f}")

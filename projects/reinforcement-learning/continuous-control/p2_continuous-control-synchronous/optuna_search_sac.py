@@ -18,14 +18,15 @@ def coarse_objective(trial):
     tau = trial.suggest_float("tau", 0.001, 0.01, log=True)
     batch_size = trial.suggest_categorical("batch_size", [128, 256])
     #use_state_norm = trial.suggest_categorical("use_state_norm", [False, True])
+    use_prioritized = trial.suggest_categorical("use_prioritized_replay", [False, True])
     
     # For SAC, we don't need external noise parameters.
     # Add option to use a fixed (static) alpha.
-    use_static_alpha = trial.suggest_categorical("use_static_alpha", [False, True])
-    if use_static_alpha:
-        static_alpha = trial.suggest_float("static_alpha", 0.01, 0.2, log=True)
+    use_fixed_alpha = trial.suggest_categorical("use_fixed_alpha", [False, True])
+    if use_fixed_alpha:
+        fixed_alpha = trial.suggest_float("fixed_alpha", 0.01, 0.2, log=True)
     else:
-        static_alpha = None
+        fixed_alpha = None
 
     # Environment and update hyperparameters.
     env_steps_per_update = trial.suggest_int("env_steps_per_update", 10, 50, step=10)
@@ -52,8 +53,7 @@ def coarse_objective(trial):
         "lr_alpha": lr_alpha,
         "tau": tau,
         "use_state_norm": True,
-        # For SAC, no OU noise parameters are needed.
-        "static_alpha": static_alpha,  # If None, alpha will be learned.
+        "fixed_alpha": fixed_alpha,  # If None, alpha will be learned.
         "replay_capacity": replay_capacity,
         "eval_frequency": eval_frequency,
         "eval_episodes": eval_episodes,
@@ -65,7 +65,8 @@ def coarse_objective(trial):
         "use_reward_normalization": True,
         # Update frequency parameters:
         "env_steps_per_update": env_steps_per_update,
-        "updates_per_block": updates_per_block
+        "updates_per_block": updates_per_block,
+        "use_prioritized_replay": use_prioritized
     }
     q = mp.Queue()
     p = mp.Process(target=run_trial, args=(q, params))
@@ -91,7 +92,7 @@ def fine_objective(trial):
     else:
         static_alpha = None
 
-    # For fine tuning we keep these fixed.
+    # For fine-tuning we keep these fixed.
     gamma = 0.96
     replay_capacity = int(1e6)
     eval_frequency = 10
@@ -123,7 +124,8 @@ def fine_objective(trial):
         "reward_scaling_factor": best_coarse["reward_scaling_factor"],
         "use_reward_normalization": best_coarse["use_reward_normalization"],
         "env_steps_per_update": env_steps_per_update,
-        "updates_per_block": updates_per_block
+        "updates_per_block": updates_per_block,
+        "use_prioritized_replay": best_coarse["use_prioritized_replay"]
     }
     q = mp.Queue()
     p = mp.Process(target=run_trial, args=(q, params))
