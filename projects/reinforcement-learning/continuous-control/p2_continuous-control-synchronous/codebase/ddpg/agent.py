@@ -117,7 +117,7 @@ class DDPGAgent:
             hidden2=critic_hidden_size, 
             init_type="kaiming",
             use_batch_norm=use_batch_norm,
-            dropout_prob=0.2).to(self.device)
+            dropout_prob=None).to(self.device)
         
         self.critic_target = Critic(
             state_size, 
@@ -206,9 +206,10 @@ class DDPGAgent:
     
         # --- Critic Update ---
         with torch.no_grad():
-            noise = (torch.randn_like(action) * 0.2).clamp(-0.5, 0.5)
-            noisy_action = (self.actor_target(next_state) + noise).clamp(-1.0, 1.0)
-            target_Q = self.critic_target(next_state, noisy_action)
+            # noise = (torch.randn_like(action) * 0.1).clamp(-0.2, 0.2)
+            # noisy_action = (self.actor_target(next_state) + noise).clamp(-1.0, 1.0)
+            
+            target_Q = self.critic_target(next_state, self.actor_target(next_state))
             target = reward + mask * self.gamma * target_Q
             # clamp:     target = reward + mask * self.gamma * torch.clamp(target_Q, min=-10.0, max=10.0)
 
@@ -221,8 +222,8 @@ class DDPGAgent:
             #weights = batch.is_weight.unsqueeze(1)  # shape: [batch_size, 1]
             critic_loss = (is_weights * td_error ** 2).mean()
         else:
-            #critic_loss = nn.MSELoss()(current_Q, target)
-            critic_loss = nn.SmoothL1Loss()(current_Q, target)
+            critic_loss = nn.MSELoss()(current_Q, target)
+            #critic_loss = nn.SmoothL1Loss()(current_Q, target)
 
         # Optimize critic
         self.critic_optimizer.zero_grad()

@@ -14,11 +14,15 @@ class Critic(nn.Module):
 
         self.fc1 = nn.Linear(state_size + action_size, hidden1)
         self.bn1 = nn.BatchNorm1d(hidden1, momentum=bn_momentum) if use_batch_norm else None
-        self.dropout1 = nn.Dropout(p=dropout_prob)
+        
+        if dropout_prob is not None and dropout_prob > 0:
+            self.dropout1 = nn.Dropout(p=dropout_prob)
 
         self.fc2 = nn.Linear(hidden1, hidden2)
         self.bn2 = nn.BatchNorm1d(hidden2, momentum=bn_momentum) if use_batch_norm else None
-        self.dropout2 = nn.Dropout(p=dropout_prob)
+        
+        if dropout_prob is not None and dropout_prob > 0:
+            self.dropout2 = nn.Dropout(p=dropout_prob)
 
         self.fc3 = nn.Linear(hidden2, 1)
 
@@ -30,14 +34,19 @@ class Critic(nn.Module):
         x = self.fc1(x)
         if self.use_batch_norm:
             x = self.bn1(x)
-        x = F.relu(x)
-        x = self.dropout1(x)  
+        x = F.leaky_relu(x, negative_slope=0.01)
+
+        if self.dropout_prob is not None and self.dropout_prob > 0:
+            x = self.dropout1(x)  
 
         x = self.fc2(x)
         if self.use_batch_norm:
             x = self.bn2(x)
-        x = F.relu(x)
-        x = self.dropout2(x) 
+            
+        x = F.leaky_relu(x, negative_slope=0.01)
+        
+        if self.dropout_prob is not None and self.dropout_prob > 0:
+            x = self.dropout2(x) 
 
         return self.fc3(x)
 

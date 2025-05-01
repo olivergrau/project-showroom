@@ -1,10 +1,19 @@
 import time
 import subprocess
+import numpy as np
 from unityagents import UnityEnvironment
 import gc
 
 class BootstrappedEnvironment:
-    def __init__(self, exe_path, worker_id=0, use_graphics=False, preprocess_fn=None, max_retries=5, retry_delay=2):
+    def __init__(
+            self, 
+            exe_path, 
+            worker_id=0, 
+            use_graphics=False, 
+            preprocess_fn=None, 
+            max_retries=5, 
+            retry_delay=2, 
+            reward_shaping_fn=None):
         """
         Initialize the Unity environment wrapper.
         """
@@ -15,6 +24,12 @@ class BootstrappedEnvironment:
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self._closed = False
+        self.reward_shaping_fn = reward_shaping_fn
+        self.total_steps = 0
+
+        print(f"[BootstrappedEnvironment] Initializing Unity environment with exe_path: {self.exe_path}, worker_id: {self.worker_id}, use_graphics: {self.use_graphics}")
+        print(f"[BootstrappedEnvironment] Preprocess function: {self.preprocess_fn}, Max retries: {self.max_retries}, Retry delay: {self.retry_delay}")
+        print(f"[BootstrappedEnvironment] Reward shaping function: {self.reward_shaping_fn}")
 
         try:
             self.env = UnityEnvironment(file_name=self.exe_path, no_graphics=not self.use_graphics, worker_id=self.worker_id)
@@ -26,6 +41,8 @@ class BootstrappedEnvironment:
         self.brain_name = self.env.brain_names[0]
 
     def reset(self, train_mode=True):
+        self.prev_dist = None
+
         attempt = 0
         while attempt < self.max_retries:
             try:
@@ -48,15 +65,24 @@ class BootstrappedEnvironment:
         try:
             env_info = self.env.step(actions)[self.brain_name]
             raw_next_state = env_info.vector_observations
-            reward = env_info.rewards
+            env_reward = np.array(env_info.rewards, dtype=np.float64)
             done = env_info.local_done
             
+            # Optional preprocessing of the next state
             if self.preprocess_fn:
                 next_state = self.preprocess_fn(raw_next_state)
             else:
                 next_state = raw_next_state
             
-            return next_state, reward, done
+            # Apply reward shaping if provided
+            if self.reward_shaping_fn is not None:
+                reward, shaped = self.reward_shaping_fn(next_state, env_reward, self.total_steps)
+            else:
+                reward = env_reward
+
+            self.total_steps += 1
+
+            return next_state, (reward, env_reward, shaped if "shaped" in locals() else None) , done
         except Exception as e:
             print(f"[BootstrappedEnvironment] Error during step: {e}. Attempting to close environment.")
             self.close()

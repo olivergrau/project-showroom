@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import traceback
 from dataclasses import dataclass, field
-from typing import Optional, Protocol
+from typing import Optional, Protocol, Tuple
 from torch.utils.tensorboard import SummaryWriter
 from codebase.ddpg.agent import DDPGAgent
 from codebase.ddpg.env import BootstrappedEnvironment
@@ -58,6 +58,11 @@ class UpdateScheduler(Protocol):
         ...
 
 @dataclass
+class StandardUpdateScheduler:
+    def interval(self, total_steps: int) -> int:
+        return 1
+
+@dataclass
 class DynamicUpdateScheduler:
     switch_step: int
     early_interval: int
@@ -65,6 +70,106 @@ class DynamicUpdateScheduler:
 
     def interval(self, total_steps: int) -> int:
         return self.early_interval if total_steps < self.switch_step else self.late_interval
+
+# class VelocityRewardShaper:
+#     def __init__(self, alpha: float = 1.0, momentum: float = 0.99, initial_baseline: float = 0.05):
+#         """
+#         alpha        – how strongly to blend shaping into the original reward
+#         momentum     – decay rate for the moving average of observed reward_max
+#         initial_baseline – starting value for that moving average
+#         """
+#         self.alpha = alpha
+#         self.momentum = momentum
+#         self.baseline = initial_baseline
+
+#     def __call__(self,
+#                  next_state: np.ndarray,
+#                  reward:     np.ndarray
+#                 ) -> Tuple[np.ndarray, np.ndarray]:
+
+#         # 1. compute v and goal as before
+#         v     = next_state[:, 23:26]
+#         goal  = next_state[:, 26:29]
+#         v_norm = np.linalg.norm(v, axis=1) + 1e-8
+#         g_norm = np.linalg.norm(goal, axis=1) + 1e-8
+#         cos_sim = np.sum(v * goal, axis=1) / (v_norm * g_norm)
+
+#         # 2. loosened shaping: allow negative values as a penalty
+#         shaped = cos_sim * v_norm
+
+#         # 3. update moving baseline of env reward max
+#         reward_max     = np.max(reward) + 1e-6
+#         self.baseline = (self.momentum * self.baseline
+#                          + (1 - self.momentum) * reward_max)
+
+#         # 4. scale shaped so its max magnitude matches the baseline
+#         shaped_peak = np.max(np.abs(shaped)) + 1e-6
+#         scaled_shaped = self.alpha * shaped / shaped_peak * self.baseline
+
+#         return reward + scaled_shaped, scaled_shaped
+
+class VelocityRewardShaper:
+    def __init__(self, 
+                 alpha: float = 1.0, 
+                 momentum: float = 0.99, 
+                 initial_baseline: float = 0.05,
+                 decay_alpha_from: Optional[float] = None,
+                 decay_alpha_to: Optional[float] = None,
+                 decay_alpha_until: Optional[int] = None):
+        """
+        alpha               – initial blending weight for shaping
+        decay_alpha_from    – optional: start alpha decay from this value
+        decay_alpha_to      – optional: final value to decay to
+        decay_alpha_until   – optional: number of steps over which to decay
+        """
+        self.alpha = alpha
+        self.alpha_init = decay_alpha_from or alpha
+        self.alpha_target = decay_alpha_to or alpha
+        self.alpha_decay_until = decay_alpha_until
+        self.momentum = momentum
+        self.baseline = initial_baseline
+
+    def _update_alpha(self, total_steps: int):
+        if self.alpha_decay_until and total_steps < self.alpha_decay_until:
+            decay_frac = total_steps / self.alpha_decay_until
+            self.alpha = (
+                self.alpha_target + 
+                (self.alpha_init - self.alpha_target) * (1.0 - decay_frac)
+            )
+        elif self.alpha_decay_until:
+            self.alpha = self.alpha_target  # decay complete
+
+    def __call__(self,
+                 next_state: np.ndarray,
+                 reward:     np.ndarray,
+                 total_steps: Optional[int] = None
+                ) -> Tuple[np.ndarray, np.ndarray]:
+
+        if total_steps is not None:
+            self._update_alpha(total_steps)
+
+        # 1. velocity direction + magnitude
+        v     = next_state[:, 23:26]
+        goal  = next_state[:, 26:29]
+        v_norm = np.linalg.norm(v, axis=1) + 1e-8
+        g_norm = np.linalg.norm(goal, axis=1) + 1e-8
+        cos_sim = np.sum(v * goal, axis=1) / (v_norm * g_norm)
+
+        # 2. shaping signal (can be negative)
+        shaped = cos_sim * v_norm
+
+        # 3. update baseline from env reward
+        reward_max = np.max(reward) + 1e-6
+        self.baseline = self.momentum * self.baseline + (1 - self.momentum) * reward_max
+
+        # 4. scale shaping
+        shaped_peak = np.max(np.abs(shaped)) + 1e-6
+        scaled_shaped = self.alpha * shaped / shaped_peak * self.baseline
+
+        return reward + scaled_shaped, scaled_shaped
+
+shaper = VelocityRewardShaper(momentum=0.995, initial_baseline=0.05, 
+                              alpha=3.5, decay_alpha_from=3.5, decay_alpha_to=0.5, decay_alpha_until=50000)
 
 @dataclass
 class TrainingConfig:
@@ -77,13 +182,13 @@ class TrainingConfig:
     # --- Training schedule ---
     episodes: int = 1000              # Total number of training episodes
     max_steps: int = 1000             # Max steps per episode
-    batch_size: int = 256             # Number of samples per learning update
-    learn_after: int = 15000           # Delay learning until this many total env steps
-    sampling_warmup: int = 20000      # Use random actions for the first N steps
+    batch_size: int = 128             # Number of samples per learning update
+    learn_after: int = 5000           # Delay learning until this many total env steps
+    sampling_warmup: int = 10000      # Use random actions for the first N steps
 
     # --- Learning rates and optimization ---
     lr_actor: float = 1e-3            # Learning rate for the actor network
-    lr_critic: float = 1e-3           # Learning rate for the critic network
+    lr_critic: float = 1e-4           # Learning rate for the critic network
     critic_weight_decay = 1e-4        # L2 regularization for critic optimizer
     critic_clipnorm: float = 1.0      # Max norm for critic gradient clipping
 
@@ -93,9 +198,9 @@ class TrainingConfig:
     # --- Exploration (OU noise) ---
     use_ou_noise: bool = True         # Whether to use Ornstein-Uhlenbeck noise
     ou_theta: float = 0.15            # OU noise: theta (mean reversion)
-    ou_sigma: float = 0.2             # OU noise: sigma (volatility)
-    init_noise: float = 1.0           # Initial scaling factor for exploration noise
-    min_noise: float = 0.05           # Minimum noise after decay  
+    ou_sigma: float = 0.5             # OU noise: sigma (volatility)
+    init_noise: float = 1.5           # Initial scaling factor for exploration noise
+    min_noise: float = 0.1           # Minimum noise after decay  
 
     # --- Evaluation ---
     eval_freq: int = 20               # Evaluate every N episodes
@@ -107,24 +212,25 @@ class TrainingConfig:
     replay_capacity: int = 1_000_000  # Total capacity of the replay buffer
     
     # Probability to retain a 0-reward transition
-    zero_reward_prob_start: float = 0.0
-    zero_reward_prob_end: float = 0.2
-    zero_reward_prob_anneal_steps: int = 200_000
+    zero_reward_prob_start: float = 0.2
+    zero_reward_prob_end: float = 0.01
+    zero_reward_prob_anneal_steps: int = 150_000
 
     # --- Replay buffer prioritization (PER) ---
-    use_prioritized_replay: bool = False  # Use prioritized replay (instead of uniform)
+    use_prioritized_replay: bool = True  # Use prioritized replay (instead of uniform)
     per_beta_start: float = 0.4  # initial beta
     per_beta_end: float = 1.0    # final beta (fully corrects sampling bias)
     per_beta_anneal_steps: int = 500_000  # how many steps to anneal over (you can tune this)
 
-    # --- Reward preprocessing ---
+    # --- Reward preprocessing and shaping ---
     use_state_norm: bool = False     # Normalize states before feeding to actor/critic
     use_reward_scaling: bool = False # Multiply rewards by reward_scale
     reward_scale: float = 1.0        # Reward scaling factor (if enabled)
-    use_reward_norm: bool = False    # Normalize rewards (Welford's algorithm)
+    reward_shaping_fn: Optional[callable] = lambda state, reward, total_steps: shaper(state, reward, total_steps) # Reward shaping function
+    use_shaped_reward_only_steps: int = 20000  # or 5000, depending on your experiments
 
     # --- Learning schedule ---
-    scheduler: UpdateScheduler = field(default_factory=lambda: DynamicUpdateScheduler(40000, 10, 1))
+    scheduler: UpdateScheduler = field(default_factory=lambda: DynamicUpdateScheduler(10000, 10, 1))
     updates_per_block: int = 1       # Number of updates per learning trigger
 
     # --- Other ---
@@ -142,19 +248,22 @@ class TrainingRunner:
         self._build_components()
 
     def _build_components(self):
-        cfg = self.cfg
-                
+        cfg = self.cfg    
+
         # Environment
         self.env = BootstrappedEnvironment(
             exe_path="Reacher_Linux/Reacher.x86_64",
             worker_id=cfg.worker_id,
-            use_graphics=False
+            use_graphics=False,
+            reward_shaping_fn=cfg.reward_shaping_fn,
         )
 
         # Agent
         self.agent = DDPGAgent(
             state_size=cfg.state_size,
             action_size=cfg.action_size,
+            critic_input_size=256,
+            critic_hidden_size=128,
             lr_actor=cfg.lr_actor,
             lr_critic=cfg.lr_critic,
             gamma=cfg.gamma,
@@ -198,11 +307,22 @@ class TrainingRunner:
                                       self.cfg.init_noise * np.exp(-self.noise_lambda * ep))
                     self.writer.add_scalar("Env/NoiseScale", noise_scale, ep)
 
-                    ep_reward, total_steps, train_iterations = self._run_episode(
+                    # ep_reward, total_steps, train_iters, metrics if 'metrics' in locals() else None, ep_env_reward, ep_shaped_reward
+                    ep_reward, total_steps, train_iterations, metrics, ep_env_reward, ep_shaped_reward = self._run_episode(
                         env, ep, total_steps, train_iterations, noise_scale
                     )
+
                     self.writer.add_scalar("Episode/Reward", ep_reward, ep)
-                    print(f"Episode {ep} | Reward {ep_reward:.2f} | Steps {total_steps} | Updates {train_iterations}")
+                    
+                    reward_stats = f"Reward/Env {ep_env_reward:.4f} | " \
+                        f"Reward/Shaped {ep_shaped_reward:.4f} | "
+                        
+                    if metrics:
+                        print(
+                            f"Episode {ep} | Reward {ep_reward:.2f} | Steps {total_steps} | Updates {train_iterations} | Actor Loss {metrics['actor_loss']:.4f} | Critic Loss {metrics['critic_loss']:.8f} | {reward_stats}"
+                        )
+                    else:
+                        print(f"Episode {ep} | Reward {ep_reward:.2f} | Steps {total_steps} | Updates {train_iterations} | {reward_stats}")
 
                     # Evaluation block
                     if ep % self.cfg.eval_freq == 0 and ep > self.cfg.eval_warmup:
@@ -254,12 +374,15 @@ class TrainingRunner:
 
         return avg_reward
 
-    # Modified _run_episode method with per-agent transition handling for sparse reward learning
+    # I kept the episode parameter here, maybe we need it for logging
+    # and other things
     def _run_episode(self, env, episode: int, total_steps: int, train_iters: int, noise_scale: float):
         cfg = self.cfg
         state = env.reset(train_mode=True)
         self.agent.reset_noise()
         ep_reward = 0.0
+        ep_env_reward = 0.0
+        ep_shaped_reward = 0.0
         steps_since_update = 0
 
         for step in range(cfg.max_steps):
@@ -267,89 +390,97 @@ class TrainingRunner:
             steps_since_update += 1
 
             norm_state = self.norm.normalize(state) if self.norm else state
+
             if total_steps < cfg.sampling_warmup:
                 action = np.random.uniform(-1, 1, (cfg.num_agents, cfg.action_size))
             else:
                 action = self.agent.act(norm_state, noise=noise_scale)
-
-            next_state, reward, dones = env.step(action)
+            
+            next_state, reward_info, dones = env.step(action)
 
             if self.norm:
                 self.norm.update(state)
 
-            # Ensure rewards are NumPy array
-            reward = np.array(reward, dtype=np.float64)
+            reward = np.array(reward_info[0], dtype=np.float64)            
+            env_reward = np.array(reward_info[1], dtype=np.float64)     
+            shaped_reward = np.array(reward_info[2], dtype=np.float64) if reward_info[2] is not None else None     
+            
+            if total_steps < cfg.use_shaped_reward_only_steps:
+                reward = shaped_reward
 
-            # Clip rewards per agent
-            reward = np.clip(reward, -1.0, 1.0)
+            if total_steps == cfg.use_shaped_reward_only_steps:
+                print("[INFO] Switching from shaped-only rewards to shaped + environment rewards.")
 
-            # Optionally scale
             if cfg.use_reward_scaling:
                 reward *= cfg.reward_scale
 
-            # Optional reward normalization
-            if cfg.use_reward_norm:
-                n = reward.size
-                rs = self.reward_stats
-                old_c = rs["count"]
-                new_c = old_c + n
-                new_mean = (old_c * rs["mean"] + reward.sum()) / new_c
-                new_var = ((old_c * (rs["var"] + rs["mean"]**2) + (reward**2).sum()) / new_c) - new_mean**2
-                rs.update(mean=new_mean, var=(new_var if new_var > 0 else 1.0), count=new_c)
-                reward = (reward - rs["mean"]) / (np.sqrt(rs["var"])+1e-8)
+            ep_reward += np.mean(reward) # episode reward is the mean of all agents
+            ep_env_reward += np.mean(env_reward)
 
-            # Sum mean reward for logging
-            ep_reward += np.mean(reward)
+            if shaped_reward is not None:
+                ep_shaped_reward += np.mean(shaped_reward) if not cfg.use_reward_scaling else np.mean(shaped_reward * cfg.reward_scale) 
+            else:
+                ep_shaped_reward = None
+
             mask = np.array([0 if d else 1 for d in dones], dtype=np.float32)
 
             anneal_frac = min(1.0, total_steps / cfg.zero_reward_prob_anneal_steps)
-            zero_reward_prob = (
-                cfg.zero_reward_prob_start
-                + anneal_frac * (cfg.zero_reward_prob_end - cfg.zero_reward_prob_start)
-            )
+            zero_reward_prob = cfg.zero_reward_prob_start + anneal_frac * (cfg.zero_reward_prob_end - cfg.zero_reward_prob_start)
 
-            # --- Feed each agent's transition independently ---
             for i in range(cfg.num_agents):
                 keep = True
                 if np.abs(reward[i]) < 1e-6 and np.random.rand() > zero_reward_prob:
                     keep = False
                 if keep:
                     self.buffer.feed({
-                        'state': [state[i]],            # wrap into list
-                        'action': [action[i]],           # wrap into list
-                        'reward': [reward[i]],           # wrap into list
-                        'next_state': [next_state[i]],   # wrap into list
-                        'mask': [mask[i]],               # wrap into list
+                        'state': [state[i]],
+                        'action': [action[i]],
+                        'reward': [reward[i]],
+                        'next_state': [next_state[i]],
+                        'mask': [mask[i]],
                     })
 
-            # --- Trigger learning ---
             interval = cfg.scheduler.interval(total_steps)
             if total_steps >= cfg.learn_after and self.buffer.size() >= cfg.batch_size and steps_since_update >= interval:
-                train_iters = self._learn_block(train_iters, total_steps)
+                train_iters, metrics = self._learn_block(train_iters, total_steps)
                 steps_since_update = 0
 
-            # --- Logging ---
-            if step % LOG_FREQ == 0:
+            if step % LOG_FREQ == 0:                
                 self.writer.add_scalar("ReplayBuffer/Size", self.buffer.size(), train_iters)
                 self.writer.add_scalar("ReplayBuffer/ZeroRewardProb", zero_reward_prob, train_iters)
+                
+                if shaped_reward is not None:
+                    shaping_stats = {
+                        "Reward/combined_mean": np.mean(reward),
+                        "Reward/env_mean": np.mean(env_reward),
+                        "Reward/shaped_mean": np.mean(shaped_reward),
+                        "Reward/shaped_max": np.max(shaped_reward),
+                        "Reward/shaped_min": np.min(shaped_reward),
+                    }
+                else:
+                    shaping_stats = {                        
+                        "Reward/env_mean": np.mean(reward),
+                    }
+
+                for key, value in shaping_stats.items():
+                    self.writer.add_scalar(key, value, train_iters)
 
                 if self.buffer.size() > 0:
-                    # Extract rewards from the buffer
                     rewards = np.array(self.buffer.reward[:self.buffer.size()])
-
                     reward_mean = np.mean(rewards)
                     reward_std = np.std(rewards)
-
                     self.writer.add_scalar("ReplayBuffer/Reward/Mean", reward_mean, train_iters)
                     self.writer.add_scalar("ReplayBuffer/Reward/Std", reward_std, train_iters)
-
                     self.writer.add_histogram("ReplayBuffer/RewardDistribution", rewards, train_iters)
 
             state = next_state
             if all(dones):
                 break
+        
+        
 
-        return ep_reward, total_steps, train_iters
+        return ep_reward, total_steps, train_iters, metrics if 'metrics' in locals() else None, ep_env_reward, ep_shaped_reward
+
 
     def _learn_block(self, train_iters: int, total_steps: int) -> int:
         cfg = self.cfg
@@ -409,7 +540,7 @@ class TrainingRunner:
 
                 self.writer.add_scalar("IS_Weights/Mean", is_weights.mean(), train_iters)
 
-        return train_iters
+        return train_iters, metrics
 
 
 def extract_agent_weights(agent):
