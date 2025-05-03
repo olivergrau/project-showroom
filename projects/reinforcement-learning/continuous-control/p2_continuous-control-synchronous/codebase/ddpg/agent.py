@@ -1,4 +1,6 @@
 # DDPGAgent encapsulates the DDPG algorithm
+import copy
+import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -15,24 +17,40 @@ class OrnsteinUhlenbeckNoise:
     """
     Implements Ornstein-Uhlenbeck process for temporally correlated noise.
     """
-    def __init__(self, size, mu=0.0, theta=0.15, sigma=0.2):
+
+    def __init__(self, size, seed=0, mu=0., theta=0.15, sigma=0.2):
+        """Initialize parameters and noise process.
+
+        :param size: Integer. Dimension of each state
+        :param seed: Integer. Random seed
+        :param mu: Float. Mean of the distribution
+        :param theta: Float. Rate of the mean reversion of the distribution
+        :param sigma: Float. Volatility of the distribution
+        """
         self.size = size
-        self.mu = np.ones(self.size) * mu
+        self.mu = mu * np.ones(size)
         self.theta = theta
         self.sigma = sigma
+        self._rng  = np.random.RandomState(seed)
         self.reset()
-    
+
+        print(f"Ornstein-Uhlenbeck noise enabled with theta={theta}, sigma={sigma}")
+
     def reset(self):
-        self.state = self.mu.copy()
-    
+        """Reset the internal state (= noise) to mean (mu)."""
+        self.state = copy.copy(self.mu)
+
     def sample(self):
-        dx = self.theta * (self.mu - self.state) + self.sigma * np.random.randn(*self.state.shape)
-        self.state = self.state + dx
+        """Update internal state and return it as a noise sample."""
+        x = self.state
+        dx = self.theta * (self.mu - x) + self.sigma * self._rng.standard_normal(self.size)
+        self.state = x + dx
         return self.state
     
 class DDPGAgent:
     def __init__(
         self,
+        num_agents=20,
         state_size=33,
         action_size=4,
         actor_input_size=400,      # Actor input layer size
@@ -50,9 +68,9 @@ class DDPGAgent:
         use_ou_noise=True,
         ou_noise_theta=0.15,
         ou_noise_sigma=0.2,
-        use_batch_norm=False,
-        use_prioritized_replay=False,
+        seed=0
     ):
+        self.num_agents = num_agents
         self.ou_noise_theta = ou_noise_theta
         self.ou_noise_sigma = ou_noise_sigma
         self.state_size = state_size
@@ -65,9 +83,15 @@ class DDPGAgent:
         self.use_ou_noise = use_ou_noise
         self.critic_clip = critic_clip_norm
         self.critic_weight_decay = critic_weight_decay
-        self.use_prioritized_replay = use_prioritized_replay
+                
+        if self.use_ou_noise:
+            self.ou_noise = OrnsteinUhlenbeckNoise((num_agents, action_size), theta=ou_noise_theta, sigma=ou_noise_sigma, seed=seed)
 
         print()
+        print(f"{self.agent_id}: Using num_agents: {num_agents}")
+        print(f"{self.agent_id}: Using state size: {state_size}")
+        print(f"{self.agent_id}: Using action size: {action_size}")
+        print(f"{self.agent_id}: Using SEED: {seed}")
         print(f"{self.agent_id}: Using critic clip: {self.critic_clip}")
         print(f"{self.agent_id}: Using critic weight decay: {self.critic_weight_decay}")
         print(f"{self.agent_id}: Using device: {self.device}")
@@ -82,31 +106,26 @@ class DDPGAgent:
         print(f"{self.agent_id}: Using Ornstein-Uhlenbeck noise: {use_ou_noise}")
         print(f"{self.agent_id}: Using OU noise theta: {ou_noise_theta}")
         print(f"{self.agent_id}: Using OU noise sigma: {ou_noise_sigma}")
-        print(f"{self.agent_id}: Using batch normalization: {use_batch_norm}")
-        print(f"{self.agent_id}: Using prioritized replay: {use_prioritized_replay}")
         print()        
         
-        if self.use_ou_noise:
-            self.ou_noise = OrnsteinUhlenbeckNoise(action_size, mu=0.0, theta=ou_noise_theta, sigma=ou_noise_sigma)
-            print(f"{self.agent_id}: Ornstein-Uhlenbeck noise enabled with theta={ou_noise_theta}, sigma={ou_noise_sigma}")
-
         # Initialize actor and its target
         self.actor = Actor(
             state_size, 
             action_size, 
             hidden1=actor_input_size, 
-            hidden2=actor_hidden_size, 
-            init_type="kaiming",
-            use_batch_norm=use_batch_norm).to(self.device)
+            hidden2=actor_hidden_size,
+            seed=seed
+            ).to(self.device)
         
         self.actor_target = Actor(
             state_size, 
             action_size, 
             hidden1=actor_input_size, 
             hidden2=actor_hidden_size,
-            use_batch_norm=use_batch_norm).to(self.device)
+            seed=seed
+            ).to(self.device)
         
-        self.actor_target.load_state_dict(self.actor.state_dict())
+        #self.actor_target.load_state_dict(self.actor.state_dict())
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=lr_actor)
 
         # Initialize a single critic and its target
@@ -115,29 +134,29 @@ class DDPGAgent:
             action_size, 
             hidden1=critic_input_size, 
             hidden2=critic_hidden_size, 
-            init_type="kaiming",
-            use_batch_norm=use_batch_norm,
-            dropout_prob=None).to(self.device)
+            seed=seed
+            ).to(self.device)
         
         self.critic_target = Critic(
             state_size, 
             action_size, 
             hidden1=critic_input_size, 
             hidden2=critic_hidden_size,
-            use_batch_norm=use_batch_norm).to(self.device)
+            seed=seed
+            ).to(self.device)
         
-        self.critic_target.load_state_dict(self.critic.state_dict())
+        #self.critic_target.load_state_dict(self.critic.state_dict())
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=lr_critic, weight_decay=self.critic_weight_decay or 0.0)
 
-    def act(self, state, noise=0.0):
+        self.random_seed = random.seed(seed)
+
+    def act(self, state, eval=False, noise_scale=1.0):
         """
         Given a state, select an action. Optionally, add exploration noise.
         State can be a single state or a batch of states.
         """
         state = torch.FloatTensor(state).to(self.device)
-        if state.dim() == 1:
-            state = state.unsqueeze(0)
-
+        
         self.actor.eval()  # Switch to evaluation mode
         
         with torch.no_grad():
@@ -145,24 +164,23 @@ class DDPGAgent:
         
         self.actor.train()  # Optionally, revert back to training mode if needed
 
-        if noise != 0.0 and self.use_ou_noise:
-            # Use Ornstein-Uhlenbeck noise for temporally correlated exploration
-            ou_noise = self.ou_noise.sample() * noise
-            
-            # Convert OU noise to a tensor
-            ou_noise_tensor = torch.from_numpy(ou_noise).to(self.device).float()
-            
-            # If batch size > 1, replicate noise across the batch
-            if action.shape[0] > 1:
-                ou_noise_tensor = ou_noise_tensor.unsqueeze(0).expand(action.shape[0], -1)
+        noise = None
 
-            action = action + ou_noise_tensor
-        elif noise != 0.0:
+        if not eval and self.use_ou_noise:
+            # Use Ornstein-Uhlenbeck noise for temporally correlated exploration
+            noise = self.ou_noise.sample() # * noise_scale
+
+            # Convert OU noise to a tensor
+            noise_tensor = torch.from_numpy(noise).to(self.device).float()
+            
+            action = action + noise_tensor
+        elif not eval and noise_scale != 0.0 and noise_scale is not None:
             # Fallback to Gaussian noise if OU noise is disabled
-            action = action + torch.randn_like(action) * noise
+            noise = torch.randn_like(action) * noise_scale
+            action = action + torch.randn_like(action) * noise_scale
         
         # Clamp the actions to the valid range [-1, 1]
-        return action.clamp(-1, 1).detach().cpu().numpy()
+        return action.clamp(-1, 1).detach().cpu().numpy(), noise
     
     def reset_noise(self):
         """
@@ -171,7 +189,7 @@ class DDPGAgent:
         if self.use_ou_noise:
             self.ou_noise.reset()
 
-    def learn(self, batch, is_weights=None):
+    def learn(self, batch):
         """
         Update the DDPG agent networks based on a batch of transitions.
         Batch is expected to be a namedtuple or similar structure containing:
@@ -187,14 +205,14 @@ class DDPGAgent:
         self.total_it += 1
         
         # Unpack batch and move to the appropriate device
-        state = batch.state.to(self.device)
-        action = batch.action.to(self.device)
-        reward = batch.reward.unsqueeze(1).to(self.device)
-        next_state = batch.next_state.to(self.device)
-        mask = batch.mask.unsqueeze(1).to(self.device)
+        # state = batch.state.to(self.device)
+        # action = batch.action.to(self.device)
+        # reward = batch.reward.unsqueeze(1).to(self.device)
+        # next_state = batch.next_state.to(self.device)
+        # mask = batch.mask.unsqueeze(1).to(self.device)
 
-        if is_weights is None:
-            is_weights = torch.ones_like(reward)
+        # Unpack batch
+        state, action, reward, next_state, mask = batch
 
         # For logging reward stats
         reward_log = (
@@ -206,24 +224,14 @@ class DDPGAgent:
     
         # --- Critic Update ---
         with torch.no_grad():
-            # noise = (torch.randn_like(action) * 0.1).clamp(-0.2, 0.2)
-            # noisy_action = (self.actor_target(next_state) + noise).clamp(-1.0, 1.0)
-            
             target_Q = self.critic_target(next_state, self.actor_target(next_state))
             target = reward + mask * self.gamma * target_Q
-            # clamp:     target = reward + mask * self.gamma * torch.clamp(target_Q, min=-10.0, max=10.0)
 
         # 2. Compute current Q
         current_Q = self.critic(state, action)
     
         # 3. Critic loss
-        if self.use_prioritized_replay:
-            td_error = current_Q - target
-            #weights = batch.is_weight.unsqueeze(1)  # shape: [batch_size, 1]
-            critic_loss = (is_weights * td_error ** 2).mean()
-        else:
-            critic_loss = nn.MSELoss()(current_Q, target)
-            #critic_loss = nn.SmoothL1Loss()(current_Q, target)
+        critic_loss = nn.MSELoss()(current_Q, target)
 
         # Optimize critic
         self.critic_optimizer.zero_grad()
@@ -270,8 +278,12 @@ class DDPGAgent:
             # ✅ Diagnostic metrics:
             "state_mean": state.mean().item(),
             "state_std": state.std().item(),
+            "state_min": state.min().item(),
+            "state_max": state.max().item(),
             "action_mean": action.mean().item(),
             "action_std": action.std().item(),
+            "action_min": action.min().item(),
+            "action_max": action.max().item(),
             "target_Q_std": target_Q.std().item(),
             "current_Q_min": current_Q.min().item(),
             "current_Q_max": current_Q.max().item(),

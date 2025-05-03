@@ -48,7 +48,8 @@ def evaluate(agent, env, normalizer=None, episodes=5, threshold=30.0):
                 norm_state = normalizer.normalize(state) if normalizer is not None else state
                 
                 # Agent acts deterministically (no exploration noise).
-                action = agent.act(norm_state, noise=0.0)
+                action, _ = agent.act(norm_state, eval=True, noise_scale=None)
+
                 next_state, reward, done_flags = env.step(action)
             except Exception as e:
                 print(f"[Evaluation] Error during step in eval episode {ep+1}: {e}")
@@ -56,7 +57,7 @@ def evaluate(agent, env, normalizer=None, episodes=5, threshold=30.0):
                 raise
 
             # For multi-agent: average the rewards across agents.
-            episode_reward += np.mean(reward)
+            episode_reward += np.mean(reward[0])
             state = next_state
             
             # Consider the episode done when all agents have finished.

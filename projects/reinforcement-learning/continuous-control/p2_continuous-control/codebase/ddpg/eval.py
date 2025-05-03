@@ -62,6 +62,10 @@ def eval_worker(
     unity_exe_path="Reacher_Linux/Reacher.x86_64",
     reward_threshold=30.0,
     use_state_norm=False,
+    actor_input_size = 256,
+    actor_hidden_size = 256,
+    critic_input_size = 256,
+    critic_hidden_size = 256,
     log_dir=None,
     window_size=100
 ):
@@ -103,7 +107,10 @@ def eval_worker(
 
     # Instantiate the agent
     agent = DDPGAgent(
-        state_size=33, action_size=4, label="EvalWorker")
+        state_size=33, action_size=4, label="EvalWorker", 
+        actor_input_size=actor_input_size, actor_hidden_size=actor_hidden_size,
+        critic_input_size=critic_input_size, critic_hidden_size=critic_hidden_size
+    )
     
     # Create a local RunningNormalizer instance (assume state dimension 33)
     if use_state_norm:

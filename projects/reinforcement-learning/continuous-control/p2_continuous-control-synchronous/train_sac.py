@@ -243,7 +243,7 @@ def train(
                         normalizer.update(state)
 
                     if use_reward_scaling:
-                        reward = np.clip(np.array(reward, dtype=np.float64) * reward_scaling_factor, -1, 1)
+                        reward = np.clip(np.array(reward, dtype=np.float32) * reward_scaling_factor, -1, 1)
 
                     # --- Reward Normalization --- (Welford's algorithm style)
                     if use_reward_normalization:
@@ -320,7 +320,7 @@ def train(
                     # Only feed this transition if:
                     #   - The reward vector is not all zeros, OR
                     #   - It is all zeros but with 10% probability (to keep some zero-reward transitions)
-                    reward_array = np.array(reward, dtype=np.float64)
+                    reward_array = np.array(reward, dtype=np.float32)
                     if np.all(np.abs(reward_array) < 1e-6):
                         if np.random.rand() < 0.01:
                             # With x% probability, store the zero-reward transition

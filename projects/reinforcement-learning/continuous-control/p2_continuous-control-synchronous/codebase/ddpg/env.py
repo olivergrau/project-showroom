@@ -1,5 +1,6 @@
 import time
 import subprocess
+import traceback
 import numpy as np
 from unityagents import UnityEnvironment
 import gc
@@ -41,8 +42,6 @@ class BootstrappedEnvironment:
         self.brain_name = self.env.brain_names[0]
 
     def reset(self, train_mode=True):
-        self.prev_dist = None
-
         attempt = 0
         while attempt < self.max_retries:
             try:
@@ -65,7 +64,7 @@ class BootstrappedEnvironment:
         try:
             env_info = self.env.step(actions)[self.brain_name]
             raw_next_state = env_info.vector_observations
-            env_reward = np.array(env_info.rewards, dtype=np.float64)
+            env_reward = np.array(env_info.rewards, dtype=np.float32)
             done = env_info.local_done
             
             # Optional preprocessing of the next state
@@ -74,17 +73,20 @@ class BootstrappedEnvironment:
             else:
                 next_state = raw_next_state
             
+            g_norm = None
+
             # Apply reward shaping if provided
             if self.reward_shaping_fn is not None:
-                reward, shaped = self.reward_shaping_fn(next_state, env_reward, self.total_steps)
+                reward, shaped, g_norm = self.reward_shaping_fn(next_state, env_reward, self.total_steps)                
             else:
                 reward = env_reward
 
             self.total_steps += 1
 
-            return next_state, (reward, env_reward, shaped if "shaped" in locals() else None) , done
+            return next_state, (reward, env_reward, shaped if "shaped" in locals() else None, g_norm) , done
         except Exception as e:
             print(f"[BootstrappedEnvironment] Error during step: {e}. Attempting to close environment.")
+            traceback.print_exc()
             self.close()
             raise
 
