@@ -9,10 +9,6 @@ import numpy as np
 from codebase.ddpg.net.actor import Actor  # same actor network
 from codebase.ddpg.net.critic import Critic  # same critic network
 
-DEBUG = False  # Set to True for detailed debugging
-PRINT_EVERY = 1  # Print debug information every PRINT_EVERY steps
-MAX_PRINT_STEPS = 50  # Maximum number of steps to print debug information
-
 class OrnsteinUhlenbeckNoise:
     """
     Implements Ornstein-Uhlenbeck process for temporally correlated noise.

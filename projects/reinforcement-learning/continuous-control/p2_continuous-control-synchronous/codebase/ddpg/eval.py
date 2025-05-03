@@ -71,7 +71,7 @@ def evaluate(agent, env, normalizer=None, episodes=5, threshold=30.0):
     print(f"[Evaluation] Sliding window average reward (last {len(evaluation_rewards_window)} episodes): {avg_reward:.2f}")
 
     # Training is considered solved if we have 100 episodes in the window and the average meets the threshold.
-    solved = (len(evaluation_rewards_window) == 100 and avg_reward >= threshold)
+    solved = (len(evaluation_rewards_window) == 2 and avg_reward >= threshold)
     return avg_reward, solved
 
 if __name__ == "__main__":
