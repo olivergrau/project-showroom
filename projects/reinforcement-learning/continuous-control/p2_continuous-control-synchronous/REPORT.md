@@ -141,6 +141,24 @@ I implemented some additional features, because I had problems in the project. B
 
   * Over **100** noise-free evaluation episodes, the **mean score** remained **above 30**, demonstrating a robust policy.
 
+Here is a plot which shows the evaluation of the trained agent across 100 episodes. The scores are stable and consistently in a high score range (38-39) which is more that the minimum requirement of 30.
+
+![Trained Agent](./evaluation-100-ep.png)
+
 ---
 
-Overall, the DDPG agent—with the fixed uniform replay buffer, OU-noise exploration, and the additional curriculum features—successfully solves the 20-agent Unity Reacher environment well within the project requirements.
+### Future Ideas
+
+To further enhance the agent's performance and scalability, the following improvements are planned:
+
+* **Advanced Features**: Incorporate additional techniques such as reward shaping, decaying storage of zero-reward transitions, and dynamic or static noise decay to improve exploration and learning stability.
+
+* **Upgrade to TD3**: Twin Delayed DDPG (TD3) builds on DDPG by addressing its overestimation bias through the use of two critics (taking the minimum Q-value), delayed policy updates, and target policy smoothing. These modifications often lead to more stable and reliable training in continuous control tasks.
+
+* **Implement Soft Actor-Critic (SAC)**: SAC is an off-policy algorithm that optimizes a stochastic policy using entropy maximization. It is more sample-efficient than DDPG and TD3 and better handles environments with high stochasticity or multiple modes in the action space.
+
+* **Asynchronous and Parallel Training**: To align the project with real-world industrial standards, the architecture could be redesigned using a worker-based system. Separate workers for training, evaluation, and environment interaction would enable asynchronous updates and better utilization of computational resources.
+
+---
+
+Overall, the DDPG agent with the fixed uniform replay buffer, OU-noise exploration, and the optional additional curriculum features successfully solves the 20-agent Unity Reacher environment well within the project requirements.
