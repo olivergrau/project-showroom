@@ -10,11 +10,10 @@ def hidden_init(layer):
     lim = 1. / np.sqrt(fan_in)
     return (-lim, lim)
 
-
 class Critic(nn.Module):
     """
     Critic (Q‐value) model with:
-      - optional BatchNorm
+      - optional LayerNorm
       - action injected after first hidden layer
       - optional gradient clipping
     """
@@ -23,29 +22,25 @@ class Critic(nn.Module):
                  full_action_size: int,
                  hidden_units=[128, 128],
                  seed: int = 0,
-                 use_batch_norm: bool = False,                 
+                 use_layer_norm: bool = False,    # now controls LayerNorm
                  dropout_p: float = 0.1):
         super(Critic, self).__init__()
         torch.manual_seed(seed)
 
-        self.use_bn = use_batch_norm
+        self.use_ln = use_layer_norm
         self.dropout_p = dropout_p
 
         # first layer: obs only
         self.fc1 = nn.Linear(full_obs_size, hidden_units[0])
-        
-        if self.use_bn:
-            self.bn1 = nn.BatchNorm1d(hidden_units[0])
-        
+        if self.use_ln:
+            self.ln1 = nn.LayerNorm(hidden_units[0])
         if dropout_p > 0:
             self.dropout1 = nn.Dropout(p=dropout_p)
 
         # second layer: concat (hidden + actions)
         self.fc2 = nn.Linear(hidden_units[0] + full_action_size, hidden_units[1])
-        
-        if self.use_bn:
-            self.bn2 = nn.BatchNorm1d(hidden_units[1])
-        
+        if self.use_ln:
+            self.ln2 = nn.LayerNorm(hidden_units[1])
         if dropout_p > 0:
             self.dropout2 = nn.Dropout(p=dropout_p)
 
@@ -68,10 +63,8 @@ class Critic(nn.Module):
         """
         # 1) obs‐only path
         x = F.relu(self.fc1(obs_all_agents))
-        
-        if self.use_bn:
-            x = self.bn1(x)
-        
+        if self.use_ln:
+            x = self.ln1(x)
         if self.dropout_p > 0:
             x = self.dropout1(x)
 
@@ -80,15 +73,14 @@ class Critic(nn.Module):
 
         # 3) joint hidden
         x = F.relu(self.fc2(x))
-        
-        if self.use_bn:
-            x = self.bn2(x)
-        
+        if self.use_ln:
+            x = self.ln2(x)
         if self.dropout_p > 0:
             x = self.dropout2(x)
 
         # 4) output Q‐value
         return self.fc3(x)
+
 
 class Actor(nn.Module):
     """

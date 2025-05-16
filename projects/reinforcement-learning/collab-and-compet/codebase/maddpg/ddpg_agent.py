@@ -5,6 +5,7 @@ import torch.nn.functional as F
 
 import numpy as np
 from codebase.maddpg.net.actor_critic import Actor, Critic
+from codebase.maddpg.noise import GaussianNoise, Noise, OUNoise
 
 class DDPGAgent:
     """
@@ -24,9 +25,11 @@ class DDPGAgent:
                  tau=1e-3,
                  gamma=0.99,
                  actor_use_layer_norm=False,
-                 critic_use_batch_norm=False,
-                 ou_noise_sigma=0.2,
-                 ou_noise_theta=0.15,
+                 critic_use_layer_norm=False,
+                 
+                 noise_type: str = "gaussian", # ou or gaussian
+                 noise_params: dict = None,    # 
+
                  seed=0,
                  device='cpu',
                  debug: bool = False):
@@ -50,9 +53,9 @@ class DDPGAgent:
         print(f"  - tau: {tau}")
         print(f"  - gamma: {gamma}")
         print(f"  - actor_use_layer_norm: {actor_use_layer_norm}")
-        print(f"  - critic_use_batch_norm: {critic_use_batch_norm}")
-        print(f"  - ou_noise_sigma: {ou_noise_sigma}")
-        print(f"  - ou_noise_theta: {ou_noise_theta}")
+        print(f"  - critic_use_layer_norm: {critic_use_layer_norm}")
+        print(f"  - noise_type: {noise_type}")
+        print(f"  - noise_params: {noise_params}")
         print(f"  - seed: {seed}")
         print(f"  - device: {self.device}")
         print(f"  - debug: {debug}")
@@ -69,10 +72,10 @@ class DDPGAgent:
 
         # ——— Critic and optimizer ———
         self.critic = Critic(full_obs_size, full_action_size, critic_hidden, seed,
-                             use_batch_norm=critic_use_batch_norm, dropout_p=0.0).to(self.device)
+                             use_layer_norm=critic_use_layer_norm, dropout_p=0.0).to(self.device)
         
         self.critic_target = Critic(full_obs_size, full_action_size, critic_hidden, seed,
-                                    use_batch_norm=critic_use_batch_norm, dropout_p=0.0).to(self.device)
+                                    use_layer_norm=critic_use_layer_norm, dropout_p=0.0).to(self.device)
         
         self.critic_target.load_state_dict(self.critic.state_dict())
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=critic_lr, weight_decay=0.0)
@@ -81,7 +84,24 @@ class DDPGAgent:
         self.actor_target.eval()
         
         # ——— Exploration noise ———
-        self.noise = OUNoise(action_size, seed, sigma=ou_noise_sigma, theta=ou_noise_theta)
+        noise_params = noise_params or {}
+        if noise_type.lower() == "ou":
+            self.noise: Noise = OUNoise(
+                size=action_size,
+                seed=noise_params.get("seed", seed),
+                mu=noise_params.get("mu", 0.0),
+                theta=noise_params.get("theta", 0.15),
+                sigma=noise_params.get("sigma", 0.2),
+            )
+        elif noise_type.lower() == "gaussian":
+            self.noise: Noise = GaussianNoise(
+                size=action_size,
+                seed=noise_params.get("seed", seed),
+                mu=noise_params.get("mu", 0.0),
+                sigma=noise_params.get("sigma", 0.3),
+            )
+        else:
+            raise ValueError(f"Unknown noise_type={noise_type}")
 
 
     def act(self, obs, eval: bool = False):
@@ -221,37 +241,3 @@ class DDPGAgent:
         dqda = torch.autograd.grad(q, watched, retain_graph=False)[0]
         
         return dqda.abs().mean().item()
-
-
-class OUNoise:
-    """Ornstein–Uhlenbeck noise for continuous actions."""
-    def __init__(self, size, seed, mu=0.0, theta=0.15, sigma=0.2):
-        self.mu    = mu * np.ones(size)
-        self.theta = theta
-        self.sigma = sigma
-        self.rng   = np.random.RandomState(seed)
-        self.size  = size
-        self.state = None
-        self.reset()
-
-        # print out hyperparameters nicely
-        print(f"[OUNoise] Hyperparameters:")
-        print(f"  - mu: {mu}")
-        print(f"  - theta: {theta}")
-        print(f"  - sigma: {sigma}")
-        print(f"  - seed: {seed}")
-        print(f"  - size: {size}")
-        print(f"[OUNoise] Initial state: {self.state}")
-
-    def reset(self, randomize=False):
-        self.state = self.mu.copy()
-
-        if randomize:
-            self.state = np.random.uniform(-1.0, 1.0, size=self.size)
-
-
-    def sample(self):
-        dx = self.theta * (self.mu - self.state) + self.sigma * self.rng.randn(len(self.state))
-        self.state += dx
-        
-        return self.state

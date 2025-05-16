@@ -115,6 +115,7 @@ class Trainer:
                     states = self.env.reset(train_mode=True) # Receive initial state x
                     self.agent.reset()
                     episode_scores = np.zeros(self.num_agents, np.float32)
+                    episode_raw_scores = np.zeros(self.num_agents, np.float32)
 
                     for t in range(self.max_steps):                        
                         # 1) Select action on normalized states (after warmup)
@@ -123,22 +124,37 @@ class Trainer:
                         else:
                             preproc_states = states
       
-                        # 2) normalize states
-                        actions, noises = self.agent.act(preproc_states, eval=False) # don't forget to act on normalized states
+                        # —— 2) During warmup: override with random or Gaussian actions —— 
+                        if self.total_steps <= self.warmup_steps:                            
+                            # Gaussian noise around 0 (uncomment if you prefer)
+                            sigma_warmup = 0.5
+                            actions = [
+                                np.clip(np.random.normal(0.0, sigma_warmup, size=self.action_size), -1.0, 1.0)
+                                for _ in range(self.num_agents)
+                            ]
+                            noises = [None] * self.num_agents
+
+                        else:
+                            # —— 3) After warmup: use your learned policy + noise —— 
+                            actions, noises = self.agent.act(preproc_states, eval=False)
+
                         self._log_noise(noises)
                             
                         # 3) step environment
                         next_states, reward_info, dones = self.env.step(actions)
                         #rewards = reward_info[0]
                         
-                        raw_rewards = reward_info[0]                                                                        
-                        episode_scores += raw_rewards                       
+                        rewards = reward_info[0] # potentially shaped
+                        env_rewards = reward_info[1]
+
+                        episode_scores += rewards                       
+                        episode_raw_scores += env_rewards
 
                         # 4) selective negative‐reward filtering during warmup
                         store = False
                                             
                         # always keep any transition with a positive reward                    
-                        if np.any(raw_rewards > 0):
+                        if np.any(rewards > 0):
                             store = True
                         else:
                             # if we’re past warmup, keep all
@@ -153,7 +169,7 @@ class Trainer:
                             self.buffer.add(
                                 states,
                                 actions,
-                                raw_rewards.tolist(),
+                                rewards.tolist(),
                                 next_states,
                                 list(dones)
                             )
@@ -199,7 +215,7 @@ class Trainer:
                             break
 
                     # 6) end-of-episode logging
-                    self._log_episode(ep, episode_scores, scores_deque, total_updates)
+                    self._log_episode(ep, episode_scores, episode_raw_scores, scores_deque, total_updates)
                     all_scores.append(np.sum(episode_scores)) # sum because of team setting (cooperative agents)
 
         except Exception as e:
@@ -329,7 +345,7 @@ class Trainer:
                     global_step=step
                 )
 
-    def _log_episode(self, ep, ep_scores, scores_deque, total_updates):
+    def _log_episode(self, ep, ep_scores, ep_raw_scores, scores_deque, total_updates):
         """Log end-of-episode and moving averages."""
         # per-agent episodic reward
         if self.writer is not None:
@@ -342,8 +358,13 @@ class Trainer:
             self.writer.add_scalar("Reward/Episode/Min",  ep_scores.min(),  ep)
             self.writer.add_scalar("Reward/Episode/Max",  ep_scores.max(),  ep)
 
+            self.writer.add_scalar("Reward/Raw/Episode/Mean", ep_raw_scores.mean(), ep)
+            self.writer.add_scalar("Reward/Raw/Episode/Std",  ep_raw_scores.std(),  ep)
+            self.writer.add_scalar("Reward/Raw/Episode/Min",  ep_raw_scores.min(),  ep)
+            self.writer.add_scalar("Reward/Raw/Episode/Max",  ep_raw_scores.max(),  ep)
+
         # moving average over last 100
-        scores_deque.append(ep_scores.sum())
+        scores_deque.append(ep_raw_scores.sum())
         ma = np.mean(scores_deque)
         
         if self.writer is not None:
@@ -351,4 +372,4 @@ class Trainer:
 
         # update progress bar
         if ep % 25 == 0:
-            tqdm.write(f"Episode {ep} | Last Score: {np.sum(ep_scores):.2f} ({ep_scores[0]:.2f}/{ep_scores[1]:.2f}) | Moving Average {ma:.3f} | Steps {self.total_steps} | Updates {total_updates}")
+            tqdm.write(f"Episode {ep} | Last Score: {np.sum(ep_raw_scores):.2f} ({ep_raw_scores[0]:.2f}/{ep_raw_scores[1]:.2f}) | Moving Average {ma:.3f} | Steps {self.total_steps} | Updates {total_updates}")

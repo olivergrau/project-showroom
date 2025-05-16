@@ -19,8 +19,9 @@ class MADDPGAgent:
                  device='cpu',
                  seed=0,
                  use_action_noise=False,
-                 ou_noise_sigma=0.2,
-                 ou_noise_theta=0.15):
+                 noise_type: str = "gaussian", # ou or gaussian
+                 noise_params: dict = None,    # 
+                ):
         
         self.num_agents = num_agents
         self.obs_size = obs_size
@@ -29,6 +30,8 @@ class MADDPGAgent:
         self.gamma = gamma
         self.use_action_noise = use_action_noise
         self.training_logs = [[] for _ in range(num_agents)]
+        self.noise_type = noise_type
+        self.noise_params = noise_params
 
         # print out hyperparameters nicely
         print(f"[MADDPG] Hyperparameters:")
@@ -43,8 +46,8 @@ class MADDPGAgent:
         print(f"  - gamma: {gamma}")
         print(f"  - device: {self.device}")
         print(f"  - use_action_noise: {use_action_noise}")
-        print(f"  - ou_noise_sigma: {ou_noise_sigma}")
-        print(f"  - ou_noise_theta: {ou_noise_theta}")
+        print(f"  - noise_type: {noise_type}")
+        print(f"  - noise_params: {noise_params}")
         print(f"  - seed: {seed}")
 
         # Each agent sees its own obs & acts, but uses global info in critic
@@ -63,10 +66,11 @@ class MADDPGAgent:
                 gamma=gamma,
                 device=device,
                 seed=seed + i,  
-                critic_use_batch_norm=True, # without batch norm, training is unstable actions are immediately saturated
-                actor_use_layer_norm=True, 
-                ou_noise_sigma=ou_noise_sigma,
-                ou_noise_theta=ou_noise_theta, 
+                critic_use_layer_norm=True, # without batch norm, training is unstable actions are immediately saturated
+                actor_use_layer_norm=True,                 
+                noise_type=noise_type,
+                noise_params=noise_params,      
+                
                 debug=True                            
             )
             for i in range(num_agents)
