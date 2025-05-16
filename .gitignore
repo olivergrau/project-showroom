@@ -186,3 +186,7 @@ to-look-at/
 bak/
 projects/reinforcement-learning/continuous-control/python/
 projects/reinforcement-learning/continuous-control/p2_continuous-control-synchronous/runs/
+projects/reinforcement-learning/collab-and-compet/runs/
+projects/reinforcement-learning/collab-and-compet/solution/
+projects/reinforcement-learning/collab-and-compet/Tennis_Linux/
+projects/reinforcement-learning/collab-and-compet/trial_configs/
