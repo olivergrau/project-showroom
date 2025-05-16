@@ -215,8 +215,12 @@ class Trainer:
                             break
 
                     # 6) end-of-episode logging
-                    self._log_episode(ep, episode_scores, episode_raw_scores, scores_deque, total_updates)
+                    ma = self._log_episode(ep, episode_scores, episode_raw_scores, scores_deque, total_updates)
                     all_scores.append(np.sum(episode_scores)) # sum because of team setting (cooperative agents)
+
+                    if ma > 0.5:
+                        print(f"[Training] Early stopping at episode {ep} with score {ma:.3f}")
+                        break
 
         except Exception as e:
             print(f"[Training] Fatal error: {e}")
@@ -373,3 +377,5 @@ class Trainer:
         # update progress bar
         if ep % 25 == 0:
             tqdm.write(f"Episode {ep} | Last Score: {np.sum(ep_raw_scores):.2f} ({ep_raw_scores[0]:.2f}/{ep_raw_scores[1]:.2f}) | Moving Average {ma:.3f} | Steps {self.total_steps} | Updates {total_updates}")
+
+        return ma
