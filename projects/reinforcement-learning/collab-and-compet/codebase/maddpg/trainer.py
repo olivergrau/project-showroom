@@ -218,7 +218,7 @@ class Trainer:
                     ma = self._log_episode(ep, episode_scores, episode_raw_scores, scores_deque, total_updates)
                     all_scores.append(np.sum(episode_scores)) # sum because of team setting (cooperative agents)
 
-                    if ma > 0.5:
+                    if ma > 0.6:
                         print(f"[Training] Early stopping at episode {ep} with score {ma:.3f}")
                         break
 
@@ -234,8 +234,6 @@ class Trainer:
         return all_scores
 
     # ——— Logging helpers ———
-
-    # in your Trainer class, e.g. after __init__:
 
     def _log_normalizer(self, step: int):
         """Log the Distribution of per-feature mean & variance."""
@@ -261,7 +259,7 @@ class Trainer:
 
 
     def _log_noise(self, noises):
-        """Log per-agent OU-noise stats."""
+        """Log per-agent noise stats."""
         if self.writer is None or self.total_steps % LOG_FREQ != 0 or noises is None:
             return
         
