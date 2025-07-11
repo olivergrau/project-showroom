@@ -63,23 +63,23 @@ if __name__ == '__main__':
     
     # Hyperparameters
     gamma = 0.96
-    batch_size = 256
-    lr_actor = 1e-6
-    lr_critic = 1e-7
-    tau = 0.005
+    batch_size = 2048
+    lr_actor = 1e-4
+    lr_critic = 3e-4
+    tau = 0.01
     critic_clip = 10.0
     critic_weight_decay = 1e-6    
-    actor_input_size = 400
-    actor_hidden_size = 300
-    critic_input_size = 400
-    critic_hidden_size = 300
+    actor_input_size = 256
+    actor_hidden_size = 256
+    critic_input_size = 256
+    critic_hidden_size = 256
     upd_w_frequency = 250 # number of iterations / batches before updating the weights for the workers
     use_ou_noise = True
     ou_noise_theta = 0.15
-    ou_noise_sigma = 0.08
-    exploration_start_noise_factor = 0.5
+    ou_noise_sigma = 0.2
+    exploration_start_noise_factor = 1.0
     exploration_noise_decay = 0.9999
-    use_reward_scaling = False
+    use_reward_scaling = True
     reward_scaling_factor = 10.0
     use_reward_norm = True
     use_state_norm = True
@@ -87,7 +87,7 @@ if __name__ == '__main__':
     
     # Throttling: Crucial for training stability (especially in multi-worker setups)
     throttle_steps_by = 0.0 # 0.035  # 0.0 means no throttling (increase throttle to lower steps per second)
-    throttle_trainings_by = 0.008 # 0.01  # 0.0 means no throttling (increase throttle to lower training iterations per second)
+    throttle_trainings_by = 0.0 # 0.01  # 0.0 means no throttling (increase throttle to lower training iterations per second)
 
     # Communication between env_worker and train_worker
     env_train_parent_conn, env_train_child_conn = mp.Pipe()
@@ -157,6 +157,10 @@ if __name__ == '__main__':
             "Reacher_Linux/Reacher.x86_64", 
             30.0,             
             use_state_norm,
+            actor_input_size,
+            actor_hidden_size,
+            critic_input_size,
+            critic_hidden_size,
             log_dir, 100)
     )
 
