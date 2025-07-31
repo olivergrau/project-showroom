@@ -1,10 +1,11 @@
-from framework.react_agent import ReActAgent, AgentState
-from framework.state_machine import StateMachine, Step, EntryPoint, Termination
+from lib.memory import ShortTermMemory
+from lib.react_agent import ReActAgent, AgentState
+from lib.state_machine import StateMachine, Step, EntryPoint, Termination
 from typing import TypedDict, List, Union
 import json
 import logging
 
-from framework.tooling import Tool
+from lib.tooling import Tool
 
 class GameAgentState(TypedDict):
     user_query: str
@@ -22,7 +23,8 @@ class GameAnswerAgent:
                  model_name: str = "gpt-4o-mini",                  
                  api_key: str = None, 
                  base_url: str = None,
-                 log_level: str = "info") -> None:
+                 log_level: str = "info",
+                 session_id: str = None) -> None:
         """
         GameAnswerAgent that orchestrates RAG and Web search using state machine
         
@@ -31,7 +33,11 @@ class GameAnswerAgent:
         self.model_name = model_name
         self.api_key = api_key
         self.api_base = base_url
-
+        self.session_id = session_id if session_id else "default_session"
+        
+        # Initialize memory and state machine
+        self.memory = ShortTermMemory()
+        
         # Instructions for the sub-agents
         rag_instructions = """You are a game research assistant.
 
@@ -61,7 +67,8 @@ Return the tool results directly without answering the user’s question.
             instructions=rag_instructions,
             tools=[retrieve_game, evaluate_retrieval],
             api_key=api_key,
-            base_url=base_url
+            base_url=base_url,
+            memory=self.memory
         )
 
         # Second agent handles final web fallback
@@ -70,7 +77,8 @@ Return the tool results directly without answering the user’s question.
             instructions=web_instructions,
             tools=[game_web_search],
             api_key=api_key,
-            base_url=base_url
+            base_url=base_url,
+            memory=self.memory
         )
         
         self.logger = logging.getLogger("GameAnswerAgent")
@@ -90,9 +98,11 @@ Return the tool results directly without answering the user’s question.
 
         # Set log level
         self.logger.setLevel(logging.DEBUG if log_level == "debug" else logging.INFO)
-
         self.logger.debug(f"Handlers on logger: {len(self.logger.handlers)}")
-
+        
+        self.logger.info(f"GameAnswerAgent initialized with model {model_name} and session ID {self.session_id}")
+        self.logger.info(f"Debug Level: {log_level} - Handlers: {len(self.logger.handlers)}")
+        
         # Create the main workflow state machine
         self.workflow = self._create_workflow()
 
@@ -102,7 +112,7 @@ Return the tool results directly without answering the user’s question.
         self.logger.debug(f"RAG Step: Processing query '{state['user_query']}'")
         
         # Run the RAG agent which will retrieve docs and evaluate them
-        rag_run = self.rag_agent.invoke(state["user_query"])
+        rag_run = self.rag_agent.invoke(state["user_query"], self.session_id)
         final_rag_state = rag_run.get_final_state()
         
         # Extract results from the RAG agent's final message
@@ -143,7 +153,7 @@ Return the tool results directly without answering the user’s question.
         self.logger.debug(f"Web Step: Searching web for '{state['user_query']}'")
         
         # Run the web agent
-        web_run = self.web_agent.invoke(state["user_query"])
+        web_run = self.web_agent.invoke(state["user_query"], session_id=self.session_id)
         final_web_state = web_run.get_final_state()
         
         # Extract web results
@@ -258,3 +268,20 @@ Return the tool results directly without answering the user’s question.
         final_state = run.get_final_state()
         
         return final_state["final_answer"]
+    
+    def get_memory(self, session_id: str = None) -> List[GameAgentState]:
+        """        Get all memory objects for a given session   
+        Args:
+            session_id: Optional session ID to filter memory objects
+        Returns:
+            List of GameAgentState objects from memory
+        """
+        if session_id is None:
+            session_id = self.session_id
+
+        return self.memory.get_all_objects(session_id)
+
+    def print_memory(self, session_id: str = None) -> None:
+        """Print all messages from memory for a given session"""
+        for run in self.get_memory(session_id):
+            print(run.get_final_state()["messages"])
