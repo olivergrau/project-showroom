@@ -31,10 +31,10 @@ print("Sample inventory generated successfully.\n")
 
 # --- Simulate a user quote request ---
 test_items = [
-    QuoteItem(name="Standard copy paper", quantity=1000),
-    QuoteItem(name="Glossy paper", quantity=5),
-    QuoteItem(name="Notepads", quantity=8),
-    QuoteItem(name="Letterhead paper", quantity=3),  # should trigger unfulfillable
+    QuoteItem(name="Standard copy paper", quantity=1000, unit_price=0.04),
+    QuoteItem(name="Glossy paper", quantity=5, unit_price=0.20),
+    QuoteItem(name="Notepads", quantity=8, unit_price=0.50),
+    QuoteItem(name="Letterhead paper", quantity=3, unit_price=0.10),  # should trigger unfulfillable
 ]
 
 # Requested delivery date — adjust if needed

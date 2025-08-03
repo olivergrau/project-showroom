@@ -110,7 +110,7 @@ You have access to these tools:
 - create_transaction_tool(data): creates stock order transactions; data must be a list of {"item_name": ..., "quantity": ...}
 
 You will receive:
-- quote_items: list of dicts, each with 'name' and 'quantity'
+- quote_items: list of dicts, each with 'name' and 'quantity' and 'unit_price' fields
 - requested_delivery_date: string in ISO format YYYY-MM-DD
 - quote_request_date: string in ISO format YYYY-MM-DD (the date when the quote was requested - use this as "today")
 
@@ -129,7 +129,6 @@ Your task:
         - If the supplier's delivery date is **before or on** the `requested_delivery_date`, this item is **restockable in time**.
         - However, it is **NOT fulfillable yet** – unless cash is available and a restocking transaction is issued (see next step).
 
-
 2. If any items are not in stock and they are restockable (found out in 1.c):
    a. Use get_cash_balance_tool(as_of_date=quote_request_date) to get current cash.
    b. If cash is sufficient to restock all required items:
@@ -138,9 +137,11 @@ Your task:
             - item_name: the item name
             - transaction_type: "stock_orders"
             - quantity: the quantity needed for restocking
-            - price: the estimated cost for this restock order (use $5 per unit as estimate)
+            - price: the cost for this restock order
             - date: the quote_request_date
         b. Call create_transaction_tool with the list of transaction records
+        c. Save the transaction details for the final result
+        d. Mark these items as fulfillable since they will be restocked
    c. If cash is insufficient, mark restockable items as unfulfillable.
 
 3. If all items are already in stock, **do not** call get_cash_balance_tool or create_transaction_tool.
@@ -151,7 +152,8 @@ Your task:
    - all_items_fulfillable: true if all requested items are fulfillable
    - some_items_fulfillable: true if at least one but not all items are fulfillable
    - no_items_fulfillable: true if none are fulfillable
-   - restockable_items: list of item names that are restockable but in time
+   - restockable_items: list of item names that are restockable but not yet ordered
+   - stock_orders: list of transaction dicts that were created (if any)
 
 Assign this dictionary to a variable called `final_result`, and print it using Python code.
 
@@ -163,7 +165,11 @@ final_result = {
     "all_items_fulfillable": True,
     "some_items_fulfillable": False,
     "no_items_fulfillable": False,
-    "restockable_items": ["item1", "item2"]
+    "restockable_items": ["item1", "item2"],
+    "stock_orders": [
+        {"item_name": "item3", "transaction_type": "stock_orders", "quantity": 10, "price": 50.0, "date": "2025-08-01"},
+        {"item_name": "item4", "transaction_type": "stock_orders", "quantity": 5, "price": 25.0, "date": "2025-08-01"}
+    ]
 }
 print(final_result)
 """
@@ -228,14 +234,16 @@ class InventoryAgent:
                 if item_name in item_lookup:
                     unfulfillable_items.append(item_lookup[item_name])
             
-            # Collect restockable items
+            # Collect restockable items and stock orders
             restockable_items = parsed_data.get("restockable_items", [])
+            stock_orders = parsed_data.get("stock_orders", [])
             
             # Return structured InventoryCheckResult
             return InventoryCheckResult(
                 fulfillable_items=fulfillable_items,
                 unfulfillable_items=unfulfillable_items,
-                restockable_items=restockable_items
+                restockable_items=restockable_items,
+                stock_orders=stock_orders
             )
             
         except Exception as e:
@@ -243,7 +251,9 @@ class InventoryAgent:
             # Return all items as unfulfillable on error
             return InventoryCheckResult(
                 fulfillable_items=[],
-                unfulfillable_items=quote_items
+                unfulfillable_items=quote_items,
+                restockable_items=[],
+                stock_orders=[]
             )
     
     def _parse_agent_response(self, response: str) -> Dict:
@@ -271,5 +281,7 @@ class InventoryAgent:
         # Fallback: return empty structure
         return {
             "fulfillable_items": [],
-            "unfulfillable_items": []
+            "unfulfillable_items": [],
+            "restockable_items": [],
+            "stock_orders": []
         }

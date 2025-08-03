@@ -8,7 +8,8 @@ class QuoteItem(BaseModel):
     quantity: int
     
     # Pricing and discount information (optional, used in QuoteResult line_items)
-    unit_price: Optional[float] = None
+    category: Optional[str] = None  # e.g. "paper"
+    unit_price: float = None
     discount_percent: Optional[float] = None
     subtotal: Optional[float] = None
 
@@ -21,7 +22,8 @@ class ParserResult(BaseModel):
 class InventoryCheckResult(BaseModel):
     fulfillable_items: List[QuoteItem]
     unfulfillable_items: List[QuoteItem]
-    restockable_items: List[str] = []
+    restockable_items: List[str] = []  # Items that can be restocked but weren't ordered
+    stock_orders: List[Dict] = []  # Actual stock order transactions that were created
 
 class QuoteResult(BaseModel):
     success: bool = False

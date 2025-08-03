@@ -170,6 +170,7 @@ class QuoteAgent:
             print(f"Error in quote agent: {e}")
             # Return empty quote on error
             return QuoteResult(
+                success=False,
                 total_price=0.0,
                 currency="USD",
                 line_items=[],

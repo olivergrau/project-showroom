@@ -15,13 +15,13 @@ load_dotenv()
 
 # --- Tool Definitions ---
 @tool
-def get_all_inventory_tool(as_of_date: str) -> Dict[str, int]:
+def get_all_inventory_tool(as_of_date: str) -> Dict[str, Dict]:
     """
-    Returns the entire inventory as of the specified date.
+    Returns the entire inventory as of the specified date with detailed information.
     Args:
         as_of_date (str): ISO-formatted cutoff date (YYYY-MM-DD).
     Returns:
-        Dict[str, int]: Dictionary with item names as keys and stock levels as values.
+        Dict[str, Dict]: Dictionary with item names as keys and details (stock, unit_price, category) as values.
     """
     return get_all_inventory(as_of_date)
 
@@ -133,7 +133,9 @@ Your goal is to transform a user's informal quote request into a validated, stru
 You must:
 
 1. **Fetch the official inventory**
-   - Use `get_all_inventory_tool(quote_request_date)` to retrieve the full list of valid item names.
+   - Use `get_all_inventory_tool(quote_request_date)` to retrieve the full inventory with item details.
+   - The tool returns a dictionary where each item name maps to {"stock": int, "unit_price": float, "category": str}.
+   - Extract the item names (dictionary keys) for matching purposes.
    - You must not invent or assume inventory items beyond this list.
 
 2. **Parse and match requested items**
@@ -178,10 +180,11 @@ You must:
 
 Once evaluation passes, return exactly one JSON object inside a code block:
 
+Example:
 ```json
 {
   "items": [
-    { "name": "Inventory item name", "quantity": 100 }
+    { "name": "Inventory item name", "quantity": 100, "unit_price": 5.0, "category": "paper" },
   ],
   "delivery_date": "YYYY-MM-DD",
   "unmatched_items": ["original term 1", "original term 2"],
@@ -194,7 +197,7 @@ Once evaluation passes, return exactly one JSON object inside a code block:
 # Tools: get_all_inventory_tool and evaluate_inventory_parsing_tool are registered
 
 class QuoteRequestParserAgent:
-    def __init__(self):
+    def __init__(self, verbosity_level: int = 0):
         self.model = OpenAIServerModel(
             model_id="gpt-4o-mini",
             api_key=os.environ["OPENAI_API_KEY"],
@@ -209,7 +212,7 @@ class QuoteRequestParserAgent:
             model=self.model,
             instructions=SYSTEM_INSTRUCTIONS,
             max_steps=20,
-            verbosity_level=0,
+            verbosity_level=verbosity_level,
             #max_tool_threads=1,
         )
 
@@ -231,7 +234,9 @@ class QuoteRequestParserAgent:
             for item_data in parsed_data.get("items", []):
                 quote_items.append(QuoteItem(
                     name=item_data.get("name", ""),
-                    quantity=item_data.get("quantity", 0),                    
+                    quantity=item_data.get("quantity", 0), 
+                    unit_price=item_data.get("unit_price", 0.0),
+                    category=item_data.get("category", None)                   
                 ))
             
             # Return structured ParserResult

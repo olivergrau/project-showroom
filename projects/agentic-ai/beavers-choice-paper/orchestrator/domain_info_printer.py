@@ -45,7 +45,7 @@ class ConsoleDomainPrinter(DomainInfoPrinter):
             
             # print also unmatched items
             unmatched = result.get('unmatched_items', [])
-            if unmatched:
+            if len(unmatched) > 0:
                 print(f"⚠️ Unmatched Items: {len(unmatched)}")
                 for item in unmatched:
                     print(f"   • {item}")
@@ -101,10 +101,18 @@ class ConsoleDomainPrinter(DomainInfoPrinter):
             for item in state['parsed_items']:
                 print(f"   • {item.name}: {item.quantity} units")
         
+        # Include stock orders information if any were created
+        stock_orders = state.get('stock_orders', [])
+        if stock_orders:
+            total_cost = sum(order.get('price', 0) for order in stock_orders)
+            print(f"   📋 Stock Orders Placed: {len(stock_orders)} orders totaling ${total_cost:.2f}")
+            for order in stock_orders:
+                print(f"   • {order.get('item_name', 'Unknown')}: {order.get('quantity', 0)} units")
+        
         # Include restockable items information if available
         restockable = state.get('restockable_items', [])
         if restockable:
-            print(f"   🔄 Restockable Options: {len(restockable)} items could be ordered from suppliers")
+            print(f"   🔄 Additional Restockable Options: {len(restockable)} items could be ordered from suppliers")
             for item_name in restockable:
                 print(f"   • {item_name}: Available for restocking")
         
@@ -127,12 +135,15 @@ class ConsoleDomainPrinter(DomainInfoPrinter):
         fulfillable = result.get('fulfillable_items', [])
         unfulfillable = result.get('unfulfillable_items', [])
         restockable = result.get('restockable_items', [])
+        stock_orders = result.get('stock_orders', [])
         
         print(f"\n📦 Inventory Analysis:")
         print(f"   ✅ Fulfillable Items: {len(fulfillable)}")
         print(f"   ❌ Unfulfillable Items: {len(unfulfillable)}")
         if restockable:
             print(f"   🔄 Restockable Items: {len(restockable)}")
+        if stock_orders:
+            print(f"   📋 Stock Orders Created: {len(stock_orders)}")
         
         if fulfillable:
             print(f"\n✅ Items Available for Fulfillment:")
@@ -148,20 +159,36 @@ class ConsoleDomainPrinter(DomainInfoPrinter):
             print(f"\n🔄 Items Available for Restocking:")
             for item_name in restockable:
                 print(f"   • {item_name}: Can be restocked from suppliers")
+        
+        if stock_orders:
+            print(f"\n📋 Stock Orders Created:")
+            total_order_cost = 0
+            for order in stock_orders:
+                cost = order.get('price', 0)
+                total_order_cost += cost
+                print(f"   • {order.get('item_name', 'Unknown')}: {order.get('quantity', 0)} units @ ${cost:.2f}")
+            print(f"   💰 Total Order Cost: ${total_order_cost:.2f}")
     
     def _print_fulfillment_status(self, result: Dict):
         restockable = result.get('restockable_items', [])
+        stock_orders = result.get('stock_orders', [])
         
         if result.get('all_items_fulfillable'):
             print(f"\n🎯 Status: ALL ITEMS AVAILABLE - Full order possible")
+            if stock_orders:
+                print(f"   📋 Note: {len(stock_orders)} items required restocking (orders placed)")
         elif result.get('some_items_fulfillable'):
             print(f"\n⚠️ Status: PARTIAL FULFILLMENT - Some items unavailable")
+            if stock_orders:
+                print(f"   📋 Note: {len(stock_orders)} items restocked (orders placed)")
             if restockable:
-                print(f"   📋 Note: {len(restockable)} items can be restocked if needed")
+                print(f"   � Note: {len(restockable)} additional items can be restocked if needed")
         else:
             print(f"\n❌ Status: ORDER DECLINED - No items available")
+            if stock_orders:
+                print(f"   📋 Note: {len(stock_orders)} items were restocked but insufficient for order")
             if restockable:
-                print(f"   📋 Note: {len(restockable)} items could be restocked with supplier order")
+                print(f"   � Note: {len(restockable)} items could be restocked with supplier order")
     
     def _print_quote_summary(self, quote: QuoteResult):
         print(f"💰 Quote Generated:")

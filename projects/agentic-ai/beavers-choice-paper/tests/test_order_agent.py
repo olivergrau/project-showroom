@@ -58,6 +58,7 @@ test_line_items = [
 ]
 
 test_quote_result = QuoteResult(
+    success=True,
     total_price=26.60,
     currency="USD",
     line_items=test_line_items,

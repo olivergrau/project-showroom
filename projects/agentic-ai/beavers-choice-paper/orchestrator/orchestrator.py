@@ -19,6 +19,8 @@ class OrchestratorState(Dict[str, Any]):
     all_items_fulfillable: bool
     some_items_fulfillable: bool
     no_items_fulfillable: bool
+    restockable_items: List[str]
+    stock_orders: List[Dict]
     quote_result: QuoteResult
     order_result: OrderResult
     final_report: FinalReport
@@ -135,7 +137,9 @@ class Orchestrator:
             "all_items_fulfillable": False,
             "some_items_fulfillable": False,
             "no_items_fulfillable": False,
-            "quote_result": QuoteResult(total_price=0, currency="USD", line_items=[], notes=None),
+            "restockable_items": [],
+            "stock_orders": [],
+            "quote_result": QuoteResult(success=False, total_price=0, currency="USD", line_items=[], notes=None),
             "order_result": OrderResult(success=False, order_id=None, message=None),
             "final_report": FinalReport(status="declined", message="", quote=None, 
                                       unfulfillable_items=None, error_log=None)

@@ -52,6 +52,8 @@ class InventoryStepHandler(StepHandler):
             "all_items_fulfillable": len(f) == len(state["parsed_items"]),
             "some_items_fulfillable": 0 < len(f) < len(state["parsed_items"]),
             "no_items_fulfillable": len(f) == 0,
+            "restockable_items": inv.restockable_items,
+            "stock_orders": inv.stock_orders,
         }
         
         self._print_domain_info("check_inventory", state, step_result)

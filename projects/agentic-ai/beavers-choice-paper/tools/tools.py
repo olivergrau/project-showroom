@@ -286,12 +286,13 @@ def create_transaction(
         print(f"Error creating transaction: {e}")
         raise
 
-def get_all_inventory(as_of_date: str) -> Dict[str, int]:
+def get_all_inventory(as_of_date: str) -> Dict[str, Dict]:
     """
     Retrieve a snapshot of available inventory as of a specific date.
 
     This function calculates the net quantity of each item by summing 
     all stock orders and subtracting all sales up to and including the given date.
+    It also includes unit price and category information from the inventory table.
 
     Only items with positive stock are included in the result.
 
@@ -299,29 +300,48 @@ def get_all_inventory(as_of_date: str) -> Dict[str, int]:
         as_of_date (str): ISO-formatted date string (YYYY-MM-DD) representing the inventory cutoff.
 
     Returns:
-        Dict[str, int]: A dictionary mapping item names to their current stock levels.
+        Dict[str, Dict]: A dictionary mapping item names to their details:
+            {
+                "item_name": {
+                    "stock": int,
+                    "unit_price": float,
+                    "category": str
+                }
+            }
     """
     # SQL query to compute stock levels per item as of the given date
+    # with unit price and category from inventory table
     query = """
         SELECT
-            item_name,
+            t.item_name,            
             SUM(CASE
-                WHEN transaction_type = 'stock_orders' THEN units
-                WHEN transaction_type = 'sales' THEN -units
+                WHEN t.transaction_type = 'stock_orders' THEN t.units
+                WHEN t.transaction_type = 'sales' THEN -t.units
                 ELSE 0
-            END) as stock
-        FROM transactions
-        WHERE item_name IS NOT NULL
-        AND transaction_date <= :as_of_date
-        GROUP BY item_name
+            END) as stock,
+            i.unit_price,
+            i.category
+        FROM transactions t
+        LEFT JOIN inventory i ON t.item_name = i.item_name
+        WHERE t.item_name IS NOT NULL
+        AND t.transaction_date <= :as_of_date
+        GROUP BY t.item_name, i.unit_price, i.category
         HAVING stock > 0
     """
 
     # Execute the query with the date parameter
     result = pd.read_sql(query, db_engine, params={"as_of_date": as_of_date})
 
-    # Convert the result into a dictionary {item_name: stock}
-    return dict(zip(result["item_name"], result["stock"]))
+    # Convert the result into a nested dictionary
+    inventory_dict = {}
+    for _, row in result.iterrows():
+        inventory_dict[row["item_name"]] = {
+            "stock": int(row["stock"]),
+            "unit_price": float(row["unit_price"]) if row["unit_price"] is not None else 0.0,
+            "category": row["category"] if row["category"] is not None else "unknown"
+        }
+    
+    return inventory_dict
 
 def get_stock_level(item_name: str, as_of_date: Union[str, datetime]) -> pd.DataFrame:
     """
