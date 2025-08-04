@@ -72,7 +72,7 @@ print(f"  Currency: {test_quote_result.currency}")
 print(f"  Line Items:")
 for item in test_quote_result.line_items:
     discount_text = f" ({item.discount_percent}% discount)" if item.discount_percent and item.discount_percent > 0 else ""
-    print(f"    • {item.name}: {item.quantity} {item.unit} @ ${item.unit_price:.2f}{discount_text} = ${item.subtotal:.2f}")
+    print(f"    • {item.name}: {item.quantity} @ ${item.unit_price:.2f}{discount_text} = ${item.subtotal:.2f}")
 print()
 
 quote_request_date = "2025-08-01"  # Example date, adjust as needed

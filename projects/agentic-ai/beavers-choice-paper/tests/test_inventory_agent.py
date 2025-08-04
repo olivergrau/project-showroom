@@ -34,7 +34,7 @@ test_items = [
     QuoteItem(name="Standard copy paper", quantity=1000, unit_price=0.04),
     QuoteItem(name="Glossy paper", quantity=5, unit_price=0.20),
     QuoteItem(name="Notepads", quantity=8, unit_price=0.50),
-    QuoteItem(name="Letterhead paper", quantity=3, unit_price=0.10),  # should trigger unfulfillable
+    QuoteItem(name="Letterhead paper", quantity=3, unit_price=0.10),
 ]
 
 # Requested delivery date — adjust if needed
@@ -50,7 +50,8 @@ print("Running InventoryAgent test...\n")
 # Create fresh inventory agent instance
 inventory_agent = InventoryAgent(verbosity_level=2)
 
-result = inventory_agent.run(test_items, delivery_date=requested_delivery_date, quote_request_date=quote_request_date)
+result = inventory_agent.run(
+    test_items, delivery_date=requested_delivery_date, quote_request_date=quote_request_date)
 
 # --- Pretty print result ---
 import json

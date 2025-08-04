@@ -6,7 +6,7 @@ from smolagents import CodeAgent, tool, OpenAIServerModel
 from protocol import QuoteItem, QuoteResult
 from tools.tools import (
     search_quote_history,
-    get_unit_price
+    get_sell_unit_price
 )
 from json_repair import repair_json
 
@@ -19,7 +19,7 @@ load_dotenv()
 @tool
 def get_unit_price_tool(item_name: str) -> Dict[str, float]:
     """
-    Returns the unit price for a given item from the inventory.
+    Returns the sell unit price for a given item from the inventory.
 
     Args:
         item_name (str): The name of the item to get pricing for.
@@ -27,9 +27,9 @@ def get_unit_price_tool(item_name: str) -> Dict[str, float]:
     Returns:
         Dict[str, float]: Dictionary with 'unit_price' field, or 0.0 if not found.
     """
-    df = get_unit_price(item_name)
+    df = get_sell_unit_price(item_name)
     if not df.empty:
-        return {"unit_price": float(df.iloc[0]["unit_price"])}
+        return {"unit_price": float(df.iloc[0]["sell_unit_price"])}
     else:
         return {"unit_price": 0.0}
 

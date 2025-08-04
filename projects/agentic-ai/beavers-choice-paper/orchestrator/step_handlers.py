@@ -29,6 +29,9 @@ class ParseStepHandler(StepHandler):
         
         step_result = {
             "parsed_items": result.items,
+            "unmatched_items": result.unmatched_items,
+            "status": result.status,
+            "error_message": result.error_message,
             "delivery_date": result.delivery_date
         }
         

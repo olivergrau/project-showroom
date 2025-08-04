@@ -1,0 +1,2134 @@
+(beavers-choice) oliver@WORKSTATION-1:~/project-showroom/projects/agentic-ai/beavers-choice-paper/tests$ python test_full_integration.py 
+Changed working directory to: /home/oliver/project-showroom/projects/agentic-ai/beavers-choice-paper
+🏗️  BEAVER'S CHOICE PAPER COMPANY - FULL INTEGRATION TEST
+=================================================================
+
+🔧 Initializing Database...
+✅ Database initialized successfully
+📂 Loaded 20 test scenarios from data/quote_requests_sample.csv
+
+💰 Initial Financial State (2025-04-01):
+   Cash Balance: $42819.87
+   Inventory Value: $7180.13
+   Total Assets: $50000.00
+
+🤖 Initializing Multi-Agent Orchestrator...
+✅ Orchestrator initialized with 5 agents
+
+🚀 Processing 20 customer requests...
+-----------------------------------------------------------------
+
+📋 Request 1/20
+🏢 Context: office manager organizing ceremony
+📅 Date: 2025-04-01
+💰 Cash: $42819.87 | 📦 Inventory: $7180.13
+📝 Request: I would like to request the following paper supplies for the ceremony: 
+
+- 200 s...
+🔄 Running orchestrator pipeline...
+
+============================================================
+📋 STEP: PARSE
+============================================================
+📝 Original Request: I would like to request the following paper supplies for the ceremony: 
+
+- 200 sheets of A4 glossy paper
+- 100 sheets of heavy cardstock (white)
+- 100 sheets of colored paper (assorted colors)
+
+I need these supplies delivered by April 15, 2025. Thank you. (Requested for 2025-04-01)
+📅 Quote Request Date: 2025-04-01
+✅ Successfully parsed 3 items:
+   • A4 paper: 200 units
+   • Cardstock: 100 units
+   • Colored paper: 100 units
+   No unmatched items found.
+🚚 Requested Delivery Date: 2025-04-15
+
+============================================================
+📋 STEP: CHECK_INVENTORY
+============================================================
+💰 Current Financial Position:
+   Cash Balance: $42,819.87
+   Inventory Value: $7,180.13
+   Total Assets: $50,000.00
+
+📦 Inventory Analysis:
+   ✅ Fulfillable Items: 3
+   ❌ Unfulfillable Items: 0
+
+✅ Items Available for Fulfillment:
+   • A4 paper: 200 units
+   • Cardstock: 100 units
+   • Colored paper: 100 units
+
+🎯 Status: ALL ITEMS AVAILABLE - Full order possible
+
+============================================================
+📋 STEP: GENERATE_QUOTE
+============================================================
+💰 Quote Generated:
+   Total Amount: $40.50 USD
+   Line Items: 3
+
+📋 Quote Breakdown:
+   • A4 paper: 200 units @ $0.07/unit
+     Discount: 10.0%
+     Subtotal: $12.60
+   • Cardstock: 100 units @ $0.18/unit
+     Discount: 10.0%
+     Subtotal: $16.20
+   • Colored paper: 100 units @ $0.13/unit
+     Discount: 10.0%
+     Subtotal: $11.70
+
+📊 Quote Summary:
+   Total Quantity: 400 units
+   Average Price per Unit: $0.10
+
+📝 Notes: 10% bulk discount applied for orders >= 100 units based on historical pricing patterns.
+
+============================================================
+📋 STEP: FINALIZE_ORDER
+============================================================
+📋 Order Processing:
+   ✅ Order Status: SUCCESSFUL
+   🔢 Order ID: ORD-1754231566
+   📝 Message: Order completed successfully. Created 3 transactions: [1, 2, 3]. Total: $40.50 for 400 items.
+
+💰 Financial Impact:
+   Revenue Generated: $40.50
+   Updated Cash Balance: $42,860.37
+   Updated Inventory Value: $7,145.13
+   Updated Total Assets: $50,005.50
+
+============================================================
+📋 STEP: REPORTING
+============================================================
+📊 Final Business Report:
+   Status: SUCCESS
+   Message: Order placed successfully.
+
+💼 Business Metrics:
+   Order Value: $40.50
+   Items Sold: 3
+   ✅ Transaction: COMPLETED
+✅ Status: success
+📝 Message: Order placed successfully.
+💰 Quote: $40.50 for 3 items
+📊 Updated: Cash $42860.37 | Inventory $7145.13 | Total Assets $50005.50
+
+📋 Request 2/20
+🏢 Context: hotel manager organizing parade
+📅 Date: 2025-04-03
+💰 Cash: $42860.37 | 📦 Inventory: $7145.13
+📝 Request: I would like to place an order for 500 sheets of colorful poster paper, 300 roll...
+🔄 Running orchestrator pipeline...
+
+============================================================
+📋 STEP: PARSE
+============================================================
+📝 Original Request: I would like to place an order for 500 sheets of colorful poster paper, 300 roll of streamers, and 200 balloons for the parade. Please deliver the supplies by April 15, 2025. Thank you. (Requested for 2025-04-03)
+📅 Quote Request Date: 2025-04-03
+✅ Successfully parsed 2 items:
+   • 220 gsm poster paper: 500 units
+   • Party streamers: 300 units
+⚠️ Unmatched Items: 1
+   • Balloons
+🚚 Requested Delivery Date: 2025-04-15
+
+============================================================
+📋 STEP: CHECK_INVENTORY
+============================================================
+💰 Current Financial Position:
+   Cash Balance: $42,860.37
+   Inventory Value: $7,145.13
+   Total Assets: $50,005.50
+
+📦 Inventory Analysis:
+   ✅ Fulfillable Items: 2
+   ❌ Unfulfillable Items: 0
+
+✅ Items Available for Fulfillment:
+   • 220 gsm poster paper: 500 units
+   • Party streamers: 300 units
+
+🎯 Status: ALL ITEMS AVAILABLE - Full order possible
+
+============================================================
+📋 STEP: GENERATE_QUOTE
+============================================================
+💰 Quote Generated:
+   Total Amount: $214.20 USD
+   Line Items: 2
+
+📋 Quote Breakdown:
+   • 220 gsm poster paper: 500 units @ $0.44/unit
+     Discount: 10.0%
+     Subtotal: $198.00
+   • Party streamers: 300 units @ $0.06/unit
+     Discount: 10.0%
+     Subtotal: $16.20
+
+📊 Quote Summary:
+   Total Quantity: 800 units
+   Average Price per Unit: $0.27
+
+📝 Notes: 10% bulk discount applied for orders >= 100 units.
+
+============================================================
+📋 STEP: FINALIZE_ORDER
+============================================================
+📋 Order Processing:
+   ✅ Order Status: SUCCESSFUL
+   🔢 Order ID: ORD-1754231669
+   📝 Message: Order completed successfully. Created 2 transactions. Total: $214.20 for 800 items.
+
+💰 Financial Impact:
+   Revenue Generated: $214.20
+   Updated Cash Balance: $43,074.57
+   Updated Inventory Value: $6,955.13
+   Updated Total Assets: $50,029.70
+
+============================================================
+📋 STEP: REPORTING
+============================================================
+📊 Final Business Report:
+   Status: SUCCESS
+   Message: Order placed successfully.
+
+💼 Business Metrics:
+   Order Value: $214.20
+   Items Sold: 2
+   ✅ Transaction: COMPLETED
+✅ Status: success
+📝 Message: Order placed successfully.
+💰 Quote: $214.20 for 2 items
+📊 Updated: Cash $43074.57 | Inventory $6955.13 | Total Assets $50029.70
+
+📋 Request 3/20
+🏢 Context: school board resouorce manager organizing conference
+📅 Date: 2025-04-04
+💰 Cash: $43074.57 | 📦 Inventory: $6955.13
+📝 Request: I need to order 10,000 sheets of A4 paper, 5,000 sheets of A3 paper, and 500 rea...
+🔄 Running orchestrator pipeline...
+
+============================================================
+📋 STEP: PARSE
+============================================================
+📝 Original Request: I need to order 10,000 sheets of A4 paper, 5,000 sheets of A3 paper, and 500 reams of printer paper. The supplies must be delivered by April 15, 2025, for our upcoming conference. Please confirm the order and delivery schedule. (Requested for 2025-04-04)
+📅 Quote Request Date: 2025-04-04
+✅ Successfully parsed 3 items:
+   • A4 paper: 10000 units
+   • Standard copy paper: 5000 units
+   • Cardstock: 500 units
+⚠️ Unmatched Items: 2
+   • A3 paper
+   • printer paper
+🚚 Requested Delivery Date: 2025-04-15
+FUNC (get_supplier_delivery_date): Calculating for qty 10000 from date string '2025-04-04'
+FUNC (get_supplier_delivery_date): Calculating for qty 5000 from date string '2025-04-04'
+FUNC (get_supplier_delivery_date): Calculating for qty 500 from date string '2025-04-04'
+Code execution failed at line 'for item_name in restockable_items:
+    quantity = next(item['quantity'\] for item in quote_items if item['name'\] == item_name)
+    unit_price = get_buy_unit_price_tool(item_name=item_name)
+    cost = quantity * unit_price
+    total_cost += cost
+    
+    transaction_records.append({
+        "item_name": item_name,
+        "transaction_type": "stock_orders",
+        "quantity": quantity,
+        "price": cost,
+        "date": quote_request_date
+    })' due to: TypeError: 'list' object is not an iterator
+Code execution failed at line 'if total_cost <= cash_balance:
+    stock_orders = create_transaction_tool(transaction_records)
+    fulfillable_items.extend([{"name": item_name, "quantity": next(item['quantity'\] for item in quote_items if item['name'\] == item_name)} for item_name in restockable_items])
+else:
+    unfulfillable_items.extend([{"name": item_name, "quantity": next(item['quantity'\] for item in quote_items if item['name'\] == item_name)} for item_name in restockable_items])' due to: 
+TypeError: 'list' object is not an iterator
+
+============================================================
+📋 STEP: CHECK_INVENTORY
+============================================================
+💰 Current Financial Position:
+   Cash Balance: $41,524.57
+   Inventory Value: $8,505.13
+   Total Assets: $50,029.70
+
+📦 Inventory Analysis:
+   ✅ Fulfillable Items: 3
+   ❌ Unfulfillable Items: 0
+   🔄 Restockable Items: 3
+   📋 Stock Orders Created: 3
+
+✅ Items Available for Fulfillment:
+   • A4 paper: 10000 units
+   • Standard copy paper: 5000 units
+   • Cardstock: 500 units
+
+🔄 Items Available for Restocking:
+   • A4 paper: Can be restocked from suppliers
+   • Standard copy paper: Can be restocked from suppliers
+   • Cardstock: Can be restocked from suppliers
+
+📋 Stock Orders Created:
+   • A4 paper: 10000 units @ $500.00
+   • Standard copy paper: 5000 units @ $200.00
+   • Cardstock: 500 units @ $75.00
+   💰 Total Order Cost: $775.00
+
+🎯 Status: ALL ITEMS AVAILABLE - Full order possible
+   📋 Note: 3 items required restocking (orders placed)
+
+============================================================
+📋 STEP: GENERATE_QUOTE
+============================================================
+💰 Quote Generated:
+   Total Amount: $884.00 USD
+   Line Items: 3
+
+📋 Quote Breakdown:
+   • A4 paper: 10000 units @ $0.07/unit
+     Discount: 15.0%
+     Subtotal: $595.00
+   • Standard copy paper: 5000 units @ $0.05/unit
+     Discount: 15.0%
+     Subtotal: $212.50
+   • Cardstock: 500 units @ $0.18/unit
+     Discount: 15.0%
+     Subtotal: $76.50
+
+📊 Quote Summary:
+   Total Quantity: 15500 units
+   Average Price per Unit: $0.06
+
+📝 Notes: Discounts applied: 10% for orders >= 100 units, 15% for orders >= 500 units.
+
+============================================================
+📋 STEP: FINALIZE_ORDER
+============================================================
+📋 Order Processing:
+   ✅ Order Status: SUCCESSFUL
+   🔢 Order ID: ORD-1754231846
+   📝 Message: Order completed successfully. Created 3 transactions: [1, 2, 3]. Total: $884.00.
+
+💰 Financial Impact:
+   Revenue Generated: $884.00
+   Updated Cash Balance: $42,408.57
+   Updated Inventory Value: $7,730.13
+   Updated Total Assets: $50,138.70
+
+============================================================
+📋 STEP: REPORTING
+============================================================
+📊 Final Business Report:
+   Status: SUCCESS
+   Message: Order placed successfully.
+
+💼 Business Metrics:
+   Order Value: $884.00
+   Items Sold: 3
+   ✅ Transaction: COMPLETED
+✅ Status: success
+📝 Message: Order placed successfully.
+💰 Quote: $884.00 for 3 items
+📊 Updated: Cash $42408.57 | Inventory $7730.13 | Total Assets $50138.70
+
+📋 Request 4/20
+🏢 Context: non-profit director organizing reception
+📅 Date: 2025-04-05
+💰 Cash: $42408.57 | 📦 Inventory: $7730.13
+📝 Request: I need 500 sheets of high-quality, recycled cardstock in various colors for our ...
+🔄 Running orchestrator pipeline...
+You returned multiple final answers. Please return only one single final answer!
+
+============================================================
+📋 STEP: PARSE
+============================================================
+📝 Original Request: I need 500 sheets of high-quality, recycled cardstock in various colors for our reception, along with 250 sheets of A4 size printer paper. I need the order delivered by April 15, 2025. (Requested for 2025-04-05)
+📅 Quote Request Date: 2025-04-05
+✅ Successfully parsed 2 items:
+   • Cardstock: 500 units
+   • A4 paper: 250 units
+   No unmatched items found.
+🚚 Requested Delivery Date: 2025-04-15
+
+============================================================
+📋 STEP: CHECK_INVENTORY
+============================================================
+💰 Current Financial Position:
+   Cash Balance: $42,408.57
+   Inventory Value: $7,730.13
+   Total Assets: $50,138.70
+
+📦 Inventory Analysis:
+   ✅ Fulfillable Items: 2
+   ❌ Unfulfillable Items: 0
+
+✅ Items Available for Fulfillment:
+   • Cardstock: 500 units
+   • A4 paper: 250 units
+
+🎯 Status: ALL ITEMS AVAILABLE - Full order possible
+
+============================================================
+📋 STEP: GENERATE_QUOTE
+============================================================
+💰 Quote Generated:
+   Total Amount: $92.25 USD
+   Line Items: 2
+
+📋 Quote Breakdown:
+   • Cardstock: 500 units @ $0.18/unit
+     Discount: 15.0%
+     Subtotal: $76.50
+   • A4 paper: 250 units @ $0.07/unit
+     Discount: 10.0%
+     Subtotal: $15.75
+
+📊 Quote Summary:
+   Total Quantity: 750 units
+   Average Price per Unit: $0.12
+
+📝 Notes: 10% bulk discount applied for orders >= 100 units based on historical pricing patterns.
+
+============================================================
+📋 STEP: FINALIZE_ORDER
+============================================================
+📋 Order Processing:
+   ✅ Order Status: SUCCESSFUL
+   🔢 Order ID: ORD-1754231985
+   📝 Message: Order completed successfully. Created 2 transactions: [61, 62]. Total: 92.25 USD.
+
+💰 Financial Impact:
+   Revenue Generated: $92.25
+   Updated Cash Balance: $42,500.82
+   Updated Inventory Value: $7,642.63
+   Updated Total Assets: $50,143.45
+
+============================================================
+📋 STEP: REPORTING
+============================================================
+📊 Final Business Report:
+   Status: SUCCESS
+   Message: Order placed successfully.
+
+💼 Business Metrics:
+   Order Value: $92.25
+   Items Sold: 2
+   ✅ Transaction: COMPLETED
+✅ Status: success
+📝 Message: Order placed successfully.
+💰 Quote: $92.25 for 2 items
+📊 Updated: Cash $42500.82 | Inventory $7642.63 | Total Assets $50143.45
+
+📋 Request 5/20
+🏢 Context: school teacher organizing party
+📅 Date: 2025-04-05
+💰 Cash: $42500.82 | 📦 Inventory: $7642.63
+📝 Request: I would like to place an order for 500 sheets of 8.5"x11" colored paper, 300 she...
+🔄 Running orchestrator pipeline...
+
+============================================================
+📋 STEP: PARSE
+============================================================
+📝 Original Request: I would like to place an order for 500 sheets of 8.5"x11" colored paper, 300 sheets of cardstock in various colors, and 200 rolls of decorative washi tape. I need these supplies delivered by April 15, 2025, for an upcoming party. Thank you! (Requested for 2025-04-05)
+📅 Quote Request Date: 2025-04-05
+✅ Successfully parsed 3 items:
+   • Colored paper: 500 units
+   • Cardstock: 300 units
+   • Decorative adhesive tape (washi tape): 200 units
+   No unmatched items found.
+🚚 Requested Delivery Date: 2025-04-15
+FUNC (get_supplier_delivery_date): Calculating for qty 500 from date string '2025-04-05'
+
+============================================================
+📋 STEP: CHECK_INVENTORY
+============================================================
+💰 Current Financial Position:
+   Cash Balance: $42,500.82
+   Inventory Value: $7,642.63
+   Total Assets: $50,143.45
+
+📦 Inventory Analysis:
+   ✅ Fulfillable Items: 3
+   ❌ Unfulfillable Items: 0
+   🔄 Restockable Items: 1
+   📋 Stock Orders Created: 1
+
+✅ Items Available for Fulfillment:
+   • Colored paper: 500 units
+   • Cardstock: 300 units
+   • Decorative adhesive tape (washi tape): 200 units
+
+🔄 Items Available for Restocking:
+   • Colored paper: Can be restocked from suppliers
+
+📋 Stock Orders Created:
+   • Colored paper: 500 units @ $50.00
+   💰 Total Order Cost: $50.00
+
+🎯 Status: ALL ITEMS AVAILABLE - Full order possible
+   📋 Note: 1 items required restocking (orders placed)
+
+============================================================
+📋 STEP: GENERATE_QUOTE
+============================================================
+💰 Quote Generated:
+   Total Amount: $148.85 USD
+   Line Items: 3
+
+📋 Quote Breakdown:
+   • Colored paper: 500 units @ $0.13/unit
+     Discount: 15.0%
+     Subtotal: $55.25
+   • Cardstock: 300 units @ $0.18/unit
+     Discount: 10.0%
+     Subtotal: $48.60
+   • Decorative adhesive tape (washi tape): 200 units @ $0.25/unit
+     Discount: 10.0%
+     Subtotal: $45.00
+
+📊 Quote Summary:
+   Total Quantity: 1000 units
+   Average Price per Unit: $0.15
+
+📝 Notes: 10% bulk discount applied for orders >= 100 units based on historical pricing patterns.
+
+============================================================
+📋 STEP: FINALIZE_ORDER
+============================================================
+📋 Order Processing:
+   ✅ Order Status: SUCCESSFUL
+   🔢 Order ID: ORD-1754232102
+   📝 Message: Order completed successfully. Created 3 transactions. Total: 148.85 USD.
+
+💰 Financial Impact:
+   Revenue Generated: $148.85
+   Updated Cash Balance: $42,649.67
+   Updated Inventory Value: $7,507.63
+   Updated Total Assets: $50,157.30
+
+============================================================
+📋 STEP: REPORTING
+============================================================
+📊 Final Business Report:
+   Status: SUCCESS
+   Message: Order placed successfully.
+
+💼 Business Metrics:
+   Order Value: $148.85
+   Items Sold: 3
+   ✅ Transaction: COMPLETED
+✅ Status: success
+📝 Message: Order placed successfully.
+💰 Quote: $148.85 for 3 items
+📊 Updated: Cash $42649.67 | Inventory $7507.63 | Total Assets $50157.30
+
+📋 Request 6/20
+🏢 Context: school teacher organizing assembly
+📅 Date: 2025-04-06
+💰 Cash: $42649.67 | 📦 Inventory: $7507.63
+📝 Request: I would like to order 500 sheets of colorful construction paper, 300 sheets of w...
+🔄 Running orchestrator pipeline...
+
+============================================================
+📋 STEP: PARSE
+============================================================
+📝 Original Request: I would like to order 500 sheets of colorful construction paper, 300 sheets of white printer paper, and 200 sheets of cardstock in various colors. We need these supplies delivered by April 15, 2025, for our upcoming assembly. (Requested for 2025-04-06)
+📅 Quote Request Date: 2025-04-06
+✅ Successfully parsed 3 items:
+   • Bright-colored paper: 500 units
+   • A4 paper: 300 units
+   • Cardstock: 200 units
+   No unmatched items found.
+🚚 Requested Delivery Date: 2025-04-15
+FUNC (get_supplier_delivery_date): Calculating for qty 200 from date string '2025-04-06'
+
+============================================================
+📋 STEP: CHECK_INVENTORY
+============================================================
+💰 Current Financial Position:
+   Cash Balance: $42,619.67
+   Inventory Value: $7,537.63
+   Total Assets: $50,157.30
+
+📦 Inventory Analysis:
+   ✅ Fulfillable Items: 3
+   ❌ Unfulfillable Items: 0
+   🔄 Restockable Items: 1
+   📋 Stock Orders Created: 1
+
+✅ Items Available for Fulfillment:
+   • Bright-colored paper: 500 units
+   • A4 paper: 300 units
+   • Cardstock: 200 units
+
+🔄 Items Available for Restocking:
+   • Cardstock: Can be restocked from suppliers
+
+📋 Stock Orders Created:
+   • Cardstock: 200 units @ $30.00
+   💰 Total Order Cost: $30.00
+
+🎯 Status: ALL ITEMS AVAILABLE - Full order possible
+   📋 Note: 1 items required restocking (orders placed)
+
+============================================================
+📋 STEP: GENERATE_QUOTE
+============================================================
+💰 Quote Generated:
+   Total Amount: $132.00 USD
+   Line Items: 3
+
+📋 Quote Breakdown:
+   • Bright-colored paper: 500 units @ $0.15/unit
+     Subtotal: $75.00
+   • A4 paper: 300 units @ $0.07/unit
+     Subtotal: $21.00
+   • Cardstock: 200 units @ $0.18/unit
+     Subtotal: $36.00
+
+📊 Quote Summary:
+   Total Quantity: 1000 units
+   Average Price per Unit: $0.13
+
+📝 Notes: No discounts applied.
+
+============================================================
+📋 STEP: FINALIZE_ORDER
+============================================================
+📋 Order Processing:
+   ✅ Order Status: SUCCESSFUL
+   🔢 Order ID: ORD-1754232214
+   📝 Message: Order completed successfully. Created 3 transactions: [1, 2, 3]. Total: $132.00 for 1000 items.
+
+💰 Financial Impact:
+   Revenue Generated: $132.00
+   Updated Cash Balance: $42,751.67
+   Updated Inventory Value: $7,432.63
+   Updated Total Assets: $50,184.30
+
+============================================================
+📋 STEP: REPORTING
+============================================================
+📊 Final Business Report:
+   Status: SUCCESS
+   Message: Order placed successfully.
+
+💼 Business Metrics:
+   Order Value: $132.00
+   Items Sold: 3
+   ✅ Transaction: COMPLETED
+✅ Status: success
+📝 Message: Order placed successfully.
+💰 Quote: $132.00 for 3 items
+📊 Updated: Cash $42751.67 | Inventory $7432.63 | Total Assets $50184.30
+
+📋 Request 7/20
+🏢 Context: business owner organizing exhibition
+📅 Date: 2025-04-07
+💰 Cash: $42751.67 | 📦 Inventory: $7432.63
+📝 Request: I would like to place a large order for various types of paper supplies for our ...
+🔄 Running orchestrator pipeline...
+
+============================================================
+📋 STEP: PARSE
+============================================================
+📝 Original Request: I would like to place a large order for various types of paper supplies for our upcoming exhibition. We need the following items:
+
+- 500 sheets of glossy A4 paper
+- 1000 sheets of matte A3 paper
+- 300 poster boards (24" x 36")
+- 200 sheets of heavyweight cardstock
+
+We need these supplies delivered by April 15, 2025. Thank you. (Requested for 2025-04-07)
+📅 Quote Request Date: 2025-04-07
+✅ Successfully parsed 5 items:
+   • Glossy paper: 500 units
+   • Matte paper: 1000 units
+   • Large poster paper (24x36 inches): 300 units
+   • A4 paper: 500 units
+   • Cardstock: 200 units
+⚠️ Unmatched Items: 3
+   • A3 paper
+   • Poster boards (24" x 36")
+   • Heavyweight cardstock
+🚚 Requested Delivery Date: 2025-04-15
+FUNC (get_supplier_delivery_date): Calculating for qty 1000 from date string '2025-04-07'
+FUNC (get_supplier_delivery_date): Calculating for qty 200 from date string '2025-04-07'
+Code execution failed at line 'for item in quote_items_status["restockable_items"\]:
+    item_info = next(i for i in quote_items if i['name'\] == item)
+    quantity_needed = item_info['quantity'\]
+    buy_unit_price = get_buy_unit_price_tool(item_info['name'\])
+    cost = quantity_needed * buy_unit_price
+    total_cost += cost
+    transactions.append({
+        "item_name": item_info['name'\],
+        "transaction_type": "stock_orders",
+        "quantity": quantity_needed,
+        "price": cost,
+        "date": '2025-04-07'
+    })' due to: TypeError: 'list' object is not an iterator
+Code execution failed at line 'for item_name in quote_items_status["restockable_items"\]:
+    item_info = next((i for i in quote_items if i['name'\] == item_name), None)
+
+    if item_info is not None:  # Check if item_info was found
+        quantity_needed = item_info['quantity'\]
+        buy_unit_price = get_buy_unit_price_tool(item_name)
+        cost = quantity_needed * buy_unit_price
+        total_cost += cost
+        transactions.append({
+            "item_name": item_info['name'\],
+            "transaction_type": "stock_orders",
+            "quantity": quantity_needed,
+            "price": cost,
+            "date": '2025-04-07'
+        })' due to: TypeError: 'list' object is not an iterator
+
+============================================================
+📋 STEP: CHECK_INVENTORY
+============================================================
+💰 Current Financial Position:
+   Cash Balance: $42,331.67
+   Inventory Value: $7,852.63
+   Total Assets: $50,184.30
+
+📦 Inventory Analysis:
+   ✅ Fulfillable Items: 3
+   ❌ Unfulfillable Items: 2
+   🔄 Restockable Items: 2
+   📋 Stock Orders Created: 2
+
+✅ Items Available for Fulfillment:
+   • Glossy paper: 500 units
+   • Large poster paper (24x36 inches): 300 units
+   • A4 paper: 500 units
+
+❌ Items NOT Available:
+   • Matte paper: 1000 units (out of stock or delivery issues)
+   • Cardstock: 200 units (out of stock or delivery issues)
+
+🔄 Items Available for Restocking:
+   • Matte paper: Can be restocked from suppliers
+   • Cardstock: Can be restocked from suppliers
+
+📋 Stock Orders Created:
+   • Matte paper: 1000 units @ $180.00
+   • Cardstock: 200 units @ $30.00
+   💰 Total Order Cost: $210.00
+
+⚠️ Status: PARTIAL FULFILLMENT - Some items unavailable
+   📋 Note: 2 items restocked (orders placed)
+   � Note: 2 additional items can be restocked if needed
+
+============================================================
+📋 STEP: GENERATE_QUOTE
+============================================================
+💰 Quote Generated:
+   Total Amount: $476.20 USD
+   Line Items: 3
+
+📋 Quote Breakdown:
+   • Glossy paper: 500 units @ $0.25/unit
+     Discount: 15.0%
+     Subtotal: $106.25
+   • Large poster paper (24x36 inches): 300 units @ $1.26/unit
+     Discount: 10.0%
+     Subtotal: $340.20
+   • A4 paper: 500 units @ $0.07/unit
+     Discount: 15.0%
+     Subtotal: $29.75
+
+📊 Quote Summary:
+   Total Quantity: 1300 units
+   Average Price per Unit: $0.37
+
+📝 Notes: 15% discount applied for Glossy paper based on quantity. 10% discount applied for Large poster paper (24x36 inches) based on quantity. 15% discount applied for A4 paper based on quantity.
+
+============================================================
+📋 STEP: FINALIZE_ORDER
+============================================================
+📋 Order Processing:
+   ✅ Order Status: SUCCESSFUL
+   🔢 Order ID: ORD-1754232384
+   📝 Message: Order completed successfully. Created 3 transactions: [1, 2, 3]. Total: $476.20.
+
+💰 Financial Impact:
+   Revenue Generated: $476.20
+   Updated Cash Balance: $42,807.87
+   Updated Inventory Value: $7,427.63
+   Updated Total Assets: $50,235.50
+
+============================================================
+📋 STEP: REPORTING
+============================================================
+📊 Final Business Report:
+   Status: PARTIAL
+   Message: Partially fulfilled. See order details.
+
+💼 Business Metrics:
+   Order Value: $476.20
+   Items Sold: 3
+   ⚠️ Transaction: PARTIAL FULFILLMENT
+
+❌ Unfulfilled Items: 2
+   • Matte paper: 1000 units
+   • Cardstock: 200 units
+✅ Status: partial
+📝 Message: Partially fulfilled. See order details.
+💰 Quote: $476.20 for 3 items
+📊 Updated: Cash $42807.87 | Inventory $7427.63 | Total Assets $50235.50
+
+📋 Request 8/20
+🏢 Context: school board resouorce manager organizing ceremony
+📅 Date: 2025-04-07
+💰 Cash: $42807.87 | 📦 Inventory: $7427.63
+📝 Request: I would like to place a large order for the following paper supplies for an upco...
+🔄 Running orchestrator pipeline...
+
+============================================================
+📋 STEP: PARSE
+============================================================
+📝 Original Request: I would like to place a large order for the following paper supplies for an upcoming ceremony: 
+
+- 500 sheets of A4 glossy paper 
+- 1000 sheets of A4 matte paper 
+- 2000 sheets of A5 colored paper 
+- 3000 sheets of A4 recycled paper 
+
+Please ensure delivery by April 15, 2025. Thank you. (Requested for 2025-04-07)
+📅 Quote Request Date: 2025-04-07
+✅ Successfully parsed 4 items:
+   • Glossy paper: 500 units
+   • Matte paper: 1000 units
+   • Bright-colored paper: 2000 units
+   • Recycled paper: 3000 units
+   No unmatched items found.
+🚚 Requested Delivery Date: 2025-04-15
+FUNC (get_supplier_delivery_date): Calculating for qty 500 from date string '2025-04-07'
+FUNC (get_supplier_delivery_date): Calculating for qty 2000 from date string '2025-04-07'
+FUNC (get_supplier_delivery_date): Calculating for qty 3000 from date string '2025-04-07'
+
+============================================================
+📋 STEP: CHECK_INVENTORY
+============================================================
+💰 Current Financial Position:
+   Cash Balance: $42,227.87
+   Inventory Value: $8,007.63
+   Total Assets: $50,235.50
+
+📦 Inventory Analysis:
+   ✅ Fulfillable Items: 4
+   ❌ Unfulfillable Items: 0
+   🔄 Restockable Items: 3
+   📋 Stock Orders Created: 3
+
+✅ Items Available for Fulfillment:
+   • Matte paper: 1000 units
+   • Glossy paper: 500 units
+   • Bright-colored paper: 2000 units
+   • Recycled paper: 3000 units
+
+🔄 Items Available for Restocking:
+   • Glossy paper: Can be restocked from suppliers
+   • Bright-colored paper: Can be restocked from suppliers
+   • Recycled paper: Can be restocked from suppliers
+
+📋 Stock Orders Created:
+   • Glossy paper: 500 units @ $100.00
+   • Bright-colored paper: 2000 units @ $240.00
+   • Recycled paper: 3000 units @ $240.00
+   💰 Total Order Cost: $580.00
+
+🎯 Status: ALL ITEMS AVAILABLE - Full order possible
+   📋 Note: 3 items required restocking (orders placed)
+
+============================================================
+📋 STEP: GENERATE_QUOTE
+============================================================
+💰 Quote Generated:
+   Total Amount: $895.50 USD
+   Line Items: 4
+
+📋 Quote Breakdown:
+   • Matte paper: 1000 units @ $0.24/unit
+     Discount: 10.0%
+     Subtotal: $216.00
+   • Glossy paper: 500 units @ $0.25/unit
+     Discount: 10.0%
+     Subtotal: $112.50
+   • Bright-colored paper: 2000 units @ $0.15/unit
+     Discount: 10.0%
+     Subtotal: $270.00
+   • Recycled paper: 3000 units @ $0.11/unit
+     Discount: 10.0%
+     Subtotal: $297.00
+
+📊 Quote Summary:
+   Total Quantity: 6500 units
+   Average Price per Unit: $0.14
+
+📝 Notes: 10% bulk discount applied for orders >= 100 units.
+
+============================================================
+📋 STEP: FINALIZE_ORDER
+============================================================
+📋 Order Processing:
+   ✅ Order Status: SUCCESSFUL
+   🔢 Order ID: ORD-1754232493
+   📝 Message: Order completed successfully. Created 4 transactions.
+
+💰 Financial Impact:
+   Revenue Generated: $895.50
+   Updated Cash Balance: $43,123.37
+   Updated Inventory Value: $7,247.63
+   Updated Total Assets: $50,371.00
+
+============================================================
+📋 STEP: REPORTING
+============================================================
+📊 Final Business Report:
+   Status: SUCCESS
+   Message: Order placed successfully.
+
+💼 Business Metrics:
+   Order Value: $895.50
+   Items Sold: 4
+   ✅ Transaction: COMPLETED
+✅ Status: success
+📝 Message: Order placed successfully.
+💰 Quote: $895.50 for 4 items
+📊 Updated: Cash $43123.37 | Inventory $7247.63 | Total Assets $50371.00
+
+📋 Request 9/20
+🏢 Context: city hall clerk organizing reception
+📅 Date: 2025-04-07
+💰 Cash: $43123.37 | 📦 Inventory: $7247.63
+📝 Request: I would like to place an order for the following paper supplies for the receptio...
+🔄 Running orchestrator pipeline...
+
+============================================================
+📋 STEP: PARSE
+============================================================
+📝 Original Request: I would like to place an order for the following paper supplies for the reception: 
+
+- 200 sheets of A4 white printer paper
+- 100 sheets of A3 glossy paper
+- 50 packets of 100% recycled kraft paper envelopes
+
+I need these supplies delivered by April 10, 2025. Thank you. (Requested for 2025-04-07)
+📅 Quote Request Date: 2025-04-07
+✅ Successfully parsed 3 items:
+   • A4 paper: 200 units
+   • Glossy paper: 100 units
+   • Kraft paper: 50 units
+   No unmatched items found.
+🚚 Requested Delivery Date: 2025-04-10
+
+============================================================
+📋 STEP: CHECK_INVENTORY
+============================================================
+💰 Current Financial Position:
+   Cash Balance: $43,123.37
+   Inventory Value: $7,247.63
+   Total Assets: $50,371.00
+
+📦 Inventory Analysis:
+   ✅ Fulfillable Items: 3
+   ❌ Unfulfillable Items: 0
+
+✅ Items Available for Fulfillment:
+   • A4 paper: 200 units
+   • Glossy paper: 100 units
+   • Kraft paper: 50 units
+
+🎯 Status: ALL ITEMS AVAILABLE - Full order possible
+
+============================================================
+📋 STEP: GENERATE_QUOTE
+============================================================
+💰 Quote Generated:
+   Total Amount: $42.10 USD
+   Line Items: 3
+
+📋 Quote Breakdown:
+   • A4 paper: 200 units @ $0.07/unit
+     Discount: 10.0%
+     Subtotal: $12.60
+   • Glossy paper: 100 units @ $0.25/unit
+     Discount: 10.0%
+     Subtotal: $22.50
+   • Kraft paper: 50 units @ $0.14/unit
+     Subtotal: $7.00
+
+📊 Quote Summary:
+   Total Quantity: 350 units
+   Average Price per Unit: $0.12
+
+📝 Notes: 10% bulk discount applied for A4 paper for orders >= 100 units. | 10% bulk discount applied for Glossy paper for orders >= 100 units.
+
+============================================================
+📋 STEP: FINALIZE_ORDER
+============================================================
+📋 Order Processing:
+   ✅ Order Status: SUCCESSFUL
+   🔢 Order ID: ORD-1754232615
+   📝 Message: Order completed successfully. Created 3 transactions: [1, 2, 3]. Total: $42.10.
+
+💰 Financial Impact:
+   Revenue Generated: $42.10
+   Updated Cash Balance: $43,165.47
+   Updated Inventory Value: $7,212.63
+   Updated Total Assets: $50,378.10
+
+============================================================
+📋 STEP: REPORTING
+============================================================
+📊 Final Business Report:
+   Status: SUCCESS
+   Message: Order placed successfully.
+
+💼 Business Metrics:
+   Order Value: $42.10
+   Items Sold: 3
+   ✅ Transaction: COMPLETED
+✅ Status: success
+📝 Message: Order placed successfully.
+💰 Quote: $42.10 for 3 items
+📊 Updated: Cash $43165.47 | Inventory $7212.63 | Total Assets $50378.10
+
+📋 Request 13/20
+🏢 Context: school principal organizing gathering
+📅 Date: 2025-04-08
+💰 Cash: $43165.47 | 📦 Inventory: $7212.63
+📝 Request: I would like to order 500 sheets of A4 printing paper and 200 sheets of cardstoc...
+🔄 Running orchestrator pipeline...
+
+============================================================
+📋 STEP: PARSE
+============================================================
+📝 Original Request: I would like to order 500 sheets of A4 printing paper and 200 sheets of cardstock for our upcoming gathering. Please deliver the supplies by April 10, 2025. (Requested for 2025-04-08)
+📅 Quote Request Date: 2025-04-08
+✅ Successfully parsed 2 items:
+   • A4 paper: 500 units
+   • Cardstock: 200 units
+   No unmatched items found.
+🚚 Requested Delivery Date: 2025-04-10
+
+============================================================
+📋 STEP: CHECK_INVENTORY
+============================================================
+💰 Current Financial Position:
+   Cash Balance: $43,165.47
+   Inventory Value: $7,212.63
+   Total Assets: $50,378.10
+
+📦 Inventory Analysis:
+   ✅ Fulfillable Items: 2
+   ❌ Unfulfillable Items: 0
+
+✅ Items Available for Fulfillment:
+   • A4 paper: 500 units
+   • Cardstock: 200 units
+
+🎯 Status: ALL ITEMS AVAILABLE - Full order possible
+
+============================================================
+📋 STEP: GENERATE_QUOTE
+============================================================
+💰 Quote Generated:
+   Total Amount: $63.90 USD
+   Line Items: 2
+
+📋 Quote Breakdown:
+   • A4 paper: 500 units @ $0.07/unit
+     Discount: 10.0%
+     Subtotal: $31.50
+   • Cardstock: 200 units @ $0.18/unit
+     Discount: 10.0%
+     Subtotal: $32.40
+
+📊 Quote Summary:
+   Total Quantity: 700 units
+   Average Price per Unit: $0.09
+
+📝 Notes: 10% bulk discount applied for orders >= 100 units based on historical pricing patterns.
+
+============================================================
+📋 STEP: FINALIZE_ORDER
+============================================================
+📋 Order Processing:
+   ✅ Order Status: SUCCESSFUL
+   🔢 Order ID: ORD-1754232712
+   📝 Message: Order completed successfully. Created 2 transactions: [1, 2]. Total: $63.90.
+
+💰 Financial Impact:
+   Revenue Generated: $63.90
+   Updated Cash Balance: $43,229.37
+   Updated Inventory Value: $7,157.63
+   Updated Total Assets: $50,387.00
+
+============================================================
+📋 STEP: REPORTING
+============================================================
+📊 Final Business Report:
+   Status: SUCCESS
+   Message: Order placed successfully.
+
+💼 Business Metrics:
+   Order Value: $63.90
+   Items Sold: 2
+   ✅ Transaction: COMPLETED
+✅ Status: success
+📝 Message: Order placed successfully.
+💰 Quote: $63.90 for 2 items
+📊 Updated: Cash $43229.37 | Inventory $7157.63 | Total Assets $50387.00
+
+📋 Request 12/20
+🏢 Context: city hall clerk organizing party
+📅 Date: 2025-04-08
+💰 Cash: $43229.37 | 📦 Inventory: $7157.63
+📝 Request: I would like to order 200 sheets of colorful cardstock, 500 sheets of standard p...
+🔄 Running orchestrator pipeline...
+
+============================================================
+📋 STEP: PARSE
+============================================================
+📝 Original Request: I would like to order 200 sheets of colorful cardstock, 500 sheets of standard printer paper, and 100 paper napkins for our upcoming party. Please deliver these supplies by April 15, 2025. (Requested for 2025-04-08)
+📅 Quote Request Date: 2025-04-08
+✅ Successfully parsed 3 items:
+   • Cardstock: 200 units
+   • Standard copy paper: 500 units
+   • Paper napkins: 100 units
+   No unmatched items found.
+🚚 Requested Delivery Date: 2025-04-15
+
+============================================================
+📋 STEP: CHECK_INVENTORY
+============================================================
+💰 Current Financial Position:
+   Cash Balance: $43,229.37
+   Inventory Value: $7,157.63
+   Total Assets: $50,387.00
+
+📦 Inventory Analysis:
+   ✅ Fulfillable Items: 3
+   ❌ Unfulfillable Items: 0
+
+✅ Items Available for Fulfillment:
+   • Cardstock: 200 units
+   • Standard copy paper: 500 units
+   • Paper napkins: 100 units
+
+🎯 Status: ALL ITEMS AVAILABLE - Full order possible
+
+============================================================
+📋 STEP: GENERATE_QUOTE
+============================================================
+💰 Quote Generated:
+   Total Amount: $56.35 USD
+   Line Items: 3
+
+📋 Quote Breakdown:
+   • Cardstock: 200 units @ $0.18/unit
+     Discount: 10.0%
+     Subtotal: $32.40
+   • Standard copy paper: 500 units @ $0.05/unit
+     Discount: 15.0%
+     Subtotal: $21.25
+   • Paper napkins: 100 units @ $0.03/unit
+     Discount: 10.0%
+     Subtotal: $2.70
+
+📊 Quote Summary:
+   Total Quantity: 800 units
+   Average Price per Unit: $0.07
+
+📝 Notes: 10% bulk discount applied based on quantities of items.
+
+============================================================
+📋 STEP: FINALIZE_ORDER
+============================================================
+📋 Order Processing:
+   ✅ Order Status: SUCCESSFUL
+   🔢 Order ID: ORD-1754232828
+   📝 Message: Order completed successfully. Created 3 transactions: [89, 90, 91]. Total: $56.35.
+
+💰 Financial Impact:
+   Revenue Generated: $56.35
+   Updated Cash Balance: $43,285.72
+   Updated Inventory Value: $7,105.63
+   Updated Total Assets: $50,391.35
+
+============================================================
+📋 STEP: REPORTING
+============================================================
+📊 Final Business Report:
+   Status: SUCCESS
+   Message: Order placed successfully.
+
+💼 Business Metrics:
+   Order Value: $56.35
+   Items Sold: 3
+   ✅ Transaction: COMPLETED
+✅ Status: success
+📝 Message: Order placed successfully.
+💰 Quote: $56.35 for 3 items
+📊 Updated: Cash $43285.72 | Inventory $7105.63 | Total Assets $50391.35
+
+📋 Request 10/20
+🏢 Context: business owner organizing show
+📅 Date: 2025-04-08
+💰 Cash: $43285.72 | 📦 Inventory: $7105.63
+📝 Request: I would like to place an order for 500 sheets of high-quality glossy paper and 3...
+🔄 Running orchestrator pipeline...
+
+============================================================
+📋 STEP: PARSE
+============================================================
+📝 Original Request: I would like to place an order for 500 sheets of high-quality glossy paper and 300 sheets of sturdy cardstock for our upcoming show. We need the supplies delivered by April 15, 2025. (Requested for 2025-04-08)
+📅 Quote Request Date: 2025-04-08
+✅ Successfully parsed 2 items:
+   • Glossy paper: 500 units
+   • Cardstock: 300 units
+   No unmatched items found.
+🚚 Requested Delivery Date: 2025-04-15
+FUNC (get_supplier_delivery_date): Calculating for qty 500 from date string '2025-04-08'
+FUNC (get_supplier_delivery_date): Calculating for qty 300 from date string '2025-04-08'
+FUNC (get_supplier_delivery_date): Calculating for qty 500 from date string '2025-04-08'
+FUNC (get_supplier_delivery_date): Calculating for qty 300 from date string '2025-04-08'
+Code execution failed at line 'if total_cost <= current_cash_balance:
+    for item in stock_orders:
+        unit_price = get_buy_unit_price_tool(item_name=item['name'\])
+        transaction = {
+            "item_name": item['name'\],
+            "transaction_type": "stock_orders",
+            "quantity": item['quantity'\],
+            "price": unit_price * item['quantity'\],
+            "date": quote_request_date
+        }
+        stock_orders.append(transaction)
+    
+    create_transaction_tool(data=stock_orders)
+    fulfillable_items.extend(stock_orders)  # Mark these items as fulfillable due to restocking
+else:
+    unfulfillable_items.extend(stock_orders)' due to: InterpreterError: Could not index {'item_name': 'Glossy paper', 'transaction_type': 'stock_orders', 'quantity': 500, 'price': 100.0, 
+'date': '2025-04-08'} with 'name': KeyError: 'name'. Maybe you meant one of these indexes instead: ['item_name'\]
+
+============================================================
+📋 STEP: CHECK_INVENTORY
+============================================================
+💰 Current Financial Position:
+   Cash Balance: $43,140.72
+   Inventory Value: $7,250.63
+   Total Assets: $50,391.35
+
+📦 Inventory Analysis:
+   ✅ Fulfillable Items: 2
+   ❌ Unfulfillable Items: 0
+   🔄 Restockable Items: 2
+   📋 Stock Orders Created: 2
+
+✅ Items Available for Fulfillment:
+   • Glossy paper: 500 units
+   • Cardstock: 300 units
+
+🔄 Items Available for Restocking:
+   • Glossy paper: Can be restocked from suppliers
+   • Cardstock: Can be restocked from suppliers
+
+📋 Stock Orders Created:
+   • Glossy paper: 500 units @ $100.00
+   • Cardstock: 300 units @ $45.00
+   💰 Total Order Cost: $145.00
+
+🎯 Status: ALL ITEMS AVAILABLE - Full order possible
+   📋 Note: 2 items required restocking (orders placed)
+
+============================================================
+📋 STEP: GENERATE_QUOTE
+============================================================
+💰 Quote Generated:
+   Total Amount: $161.10 USD
+   Line Items: 2
+
+📋 Quote Breakdown:
+   • Glossy paper: 500 units @ $0.25/unit
+     Discount: 10.0%
+     Subtotal: $112.50
+   • Cardstock: 300 units @ $0.18/unit
+     Discount: 10.0%
+     Subtotal: $48.60
+
+📊 Quote Summary:
+   Total Quantity: 800 units
+   Average Price per Unit: $0.20
+
+📝 Notes: 10% bulk discount applied for Glossy paper for orders >= 500 units. 10% bulk discount applied for Cardstock for orders >= 100 units.
+
+============================================================
+📋 STEP: FINALIZE_ORDER
+============================================================
+📋 Order Processing:
+   ✅ Order Status: SUCCESSFUL
+   🔢 Order ID: ORD-1754232973
+   📝 Message: Order completed successfully. Created 2 transactions.
+
+💰 Financial Impact:
+   Revenue Generated: $161.10
+   Updated Cash Balance: $43,301.82
+   Updated Inventory Value: $7,105.63
+   Updated Total Assets: $50,407.45
+
+============================================================
+📋 STEP: REPORTING
+============================================================
+📊 Final Business Report:
+   Status: SUCCESS
+   Message: Order placed successfully.
+
+💼 Business Metrics:
+   Order Value: $161.10
+   Items Sold: 2
+   ✅ Transaction: COMPLETED
+✅ Status: success
+📝 Message: Order placed successfully.
+💰 Quote: $161.10 for 2 items
+📊 Updated: Cash $43301.82 | Inventory $7105.63 | Total Assets $50407.45
+
+📋 Request 11/20
+🏢 Context: event manager organizing exhibition
+📅 Date: 2025-04-08
+💰 Cash: $43301.82 | 📦 Inventory: $7105.63
+📝 Request: I would like to order 500 sheets of A3 glossy paper and 300 sheets of A4 matte p...
+🔄 Running orchestrator pipeline...
+
+============================================================
+📋 STEP: PARSE
+============================================================
+📝 Original Request: I would like to order 500 sheets of A3 glossy paper and 300 sheets of A4 matte paper for our exhibition. The supplies are needed by April 15, 2025. Thank you. (Requested for 2025-04-08)
+📅 Quote Request Date: 2025-04-08
+✅ Successfully parsed 2 items:
+   • Glossy paper: 500 units
+   • Matte paper: 300 units
+   No unmatched items found.
+🚚 Requested Delivery Date: 2025-04-15
+FUNC (get_supplier_delivery_date): Calculating for qty 500 from date string '2025-04-08'
+
+============================================================
+📋 STEP: CHECK_INVENTORY
+============================================================
+💰 Current Financial Position:
+   Cash Balance: $43,201.82
+   Inventory Value: $7,205.63
+   Total Assets: $50,407.45
+
+📦 Inventory Analysis:
+   ✅ Fulfillable Items: 2
+   ❌ Unfulfillable Items: 0
+   🔄 Restockable Items: 1
+   📋 Stock Orders Created: 1
+
+✅ Items Available for Fulfillment:
+   • Matte paper: 300 units
+   • Glossy paper: 500 units
+
+🔄 Items Available for Restocking:
+   • Glossy paper: Can be restocked from suppliers
+
+📋 Stock Orders Created:
+   • Glossy paper: 500 units @ $100.00
+   💰 Total Order Cost: $100.00
+
+🎯 Status: ALL ITEMS AVAILABLE - Full order possible
+   📋 Note: 1 items required restocking (orders placed)
+
+============================================================
+📋 STEP: GENERATE_QUOTE
+============================================================
+💰 Quote Generated:
+   Total Amount: $171.05 USD
+   Line Items: 2
+
+📋 Quote Breakdown:
+   • Matte paper: 300 units @ $0.24/unit
+     Subtotal: $64.80
+   • Glossy paper: 500 units @ $0.25/unit
+     Subtotal: $106.25
+
+📊 Quote Summary:
+   Total Quantity: 800 units
+   Average Price per Unit: $0.21
+
+📝 Notes: Applied 10% or 15% discount based on historical pricing patterns.
+
+============================================================
+📋 STEP: FINALIZE_ORDER
+============================================================
+📋 Order Processing:
+   ✅ Order Status: SUCCESSFUL
+   🔢 Order ID: ORD-1754233096
+   📝 Message: Order completed successfully. Created 2 transactions: [1, 2]. Total: $171.05 for 2 items.
+
+💰 Financial Impact:
+   Revenue Generated: $171.05
+   Updated Cash Balance: $43,372.87
+   Updated Inventory Value: $7,051.63
+   Updated Total Assets: $50,424.50
+
+============================================================
+📋 STEP: REPORTING
+============================================================
+📊 Final Business Report:
+   Status: SUCCESS
+   Message: Order placed successfully.
+
+💼 Business Metrics:
+   Order Value: $171.05
+   Items Sold: 2
+   ✅ Transaction: COMPLETED
+✅ Status: success
+📝 Message: Order placed successfully.
+💰 Quote: $171.05 for 2 items
+📊 Updated: Cash $43372.87 | Inventory $7051.63 | Total Assets $50424.50
+
+📋 Request 14/20
+🏢 Context: city hall clerk organizing performance
+📅 Date: 2025-04-09
+💰 Cash: $43372.87 | 📦 Inventory: $7051.63
+📝 Request: I would like to place a large order for high-quality paper supplies for our upco...
+🔄 Running orchestrator pipeline...
+
+============================================================
+📋 STEP: PARSE
+============================================================
+📝 Original Request: I would like to place a large order for high-quality paper supplies for our upcoming performance. We need 5,000 sheets of A4 paper, 2,000 sheets of poster paper in various colors, and 500 sheets of cardstock. Please deliver these supplies by April 15, 2025. Thank you. (Requested for 2025-04-09)
+📅 Quote Request Date: 2025-04-09
+✅ Successfully parsed 3 items:
+   • A4 paper: 5000 units
+   • 220 gsm poster paper: 2000 units
+   • 250 gsm cardstock: 500 units
+   No unmatched items found.
+🚚 Requested Delivery Date: 2025-04-15
+FUNC (get_supplier_delivery_date): Calculating for qty 1719 from date string '2025-04-09'
+FUNC (get_supplier_delivery_date): Calculating for qty 66 from date string '2025-04-09'
+
+============================================================
+📋 STEP: CHECK_INVENTORY
+============================================================
+💰 Current Financial Position:
+   Cash Balance: $43,353.07
+   Inventory Value: $7,071.43
+   Total Assets: $50,424.50
+
+📦 Inventory Analysis:
+   ✅ Fulfillable Items: 1
+   ❌ Unfulfillable Items: 2
+   🔄 Restockable Items: 1
+   📋 Stock Orders Created: 1
+
+✅ Items Available for Fulfillment:
+   • 250 gsm cardstock: 500 units
+
+❌ Items NOT Available:
+   • A4 paper: 5000 units (out of stock or delivery issues)
+   • 220 gsm poster paper: 2000 units (out of stock or delivery issues)
+
+🔄 Items Available for Restocking:
+   • 250 gsm cardstock: Can be restocked from suppliers
+
+📋 Stock Orders Created:
+   • 250 gsm cardstock: 66 units @ $19.80
+   💰 Total Order Cost: $19.80
+
+⚠️ Status: PARTIAL FULFILLMENT - Some items unavailable
+   📋 Note: 1 items restocked (orders placed)
+   � Note: 1 additional items can be restocked if needed
+
+============================================================
+📋 STEP: GENERATE_QUOTE
+============================================================
+💰 Quote Generated:
+   Total Amount: $195.00 USD
+   Line Items: 1
+
+📋 Quote Breakdown:
+   • 250 gsm cardstock: 500 units @ $0.39/unit
+     Subtotal: $195.00
+
+📊 Quote Summary:
+   Total Quantity: 500 units
+   Average Price per Unit: $0.39
+
+============================================================
+📋 STEP: FINALIZE_ORDER
+============================================================
+📋 Order Processing:
+   ✅ Order Status: SUCCESSFUL
+   🔢 Order ID: ORD-1754233237
+   📝 Message: Order completed successfully. Created 1 transactions: 250 gsm cardstock (Quantity: 500). Total: $195.0.
+
+💰 Financial Impact:
+   Revenue Generated: $195.00
+   Updated Cash Balance: $43,548.07
+   Updated Inventory Value: $6,921.43
+   Updated Total Assets: $50,469.50
+
+============================================================
+📋 STEP: REPORTING
+============================================================
+📊 Final Business Report:
+   Status: PARTIAL
+   Message: Partially fulfilled. See order details.
+
+💼 Business Metrics:
+   Order Value: $195.00
+   Items Sold: 1
+   ⚠️ Transaction: PARTIAL FULFILLMENT
+
+❌ Unfulfilled Items: 2
+   • A4 paper: 5000 units
+   • 220 gsm poster paper: 2000 units
+✅ Status: partial
+📝 Message: Partially fulfilled. See order details.
+💰 Quote: $195.00 for 1 items
+📊 Updated: Cash $43548.07 | Inventory $6921.43 | Total Assets $50469.50
+
+📋 Request 15/20
+🏢 Context: event manager organizing demonstration
+📅 Date: 2025-04-12
+💰 Cash: $43548.07 | 📦 Inventory: $6921.43
+📝 Request: I would like to place a large order for high-quality paper supplies for our upco...
+🔄 Running orchestrator pipeline...
+
+============================================================
+📋 STEP: PARSE
+============================================================
+📝 Original Request: I would like to place a large order for high-quality paper supplies for our upcoming demonstration. Please provide the following:
+
+- 10,000 sheets of A4 white paper
+- 5,000 sheets of A3 colored paper (assorted colors)
+- 500 reams of cardboard for signage
+
+I need these supplies delivered by April 15, 2025. Thank you. (Requested for 2025-04-12)
+📅 Quote Request Date: 2025-04-12
+✅ Successfully parsed 3 items:
+   • A4 paper: 10000 units
+   • Bright-colored paper: 5000 units
+   • Cardstock: 500 units
+   No unmatched items found.
+🚚 Requested Delivery Date: 2025-04-15
+FUNC (get_supplier_delivery_date): Calculating for qty 10000 from date string '2025-04-12'
+FUNC (get_supplier_delivery_date): Calculating for qty 5000 from date string '2025-04-12'
+FUNC (get_supplier_delivery_date): Calculating for qty 500 from date string '2025-04-12'
+
+============================================================
+📋 STEP: CHECK_INVENTORY
+============================================================
+💰 Current Financial Position:
+   Cash Balance: $42,373.07
+   Inventory Value: $8,096.43
+   Total Assets: $50,469.50
+
+📦 Inventory Analysis:
+   ✅ Fulfillable Items: 3
+   ❌ Unfulfillable Items: 0
+   📋 Stock Orders Created: 3
+
+✅ Items Available for Fulfillment:
+   • A4 paper: 10000 units
+   • Bright-colored paper: 5000 units
+   • Cardstock: 500 units
+
+📋 Stock Orders Created:
+   • A4 paper: 10000 units @ $500.00
+   • Bright-colored paper: 5000 units @ $600.00
+   • Cardstock: 500 units @ $75.00
+   💰 Total Order Cost: $1175.00
+
+🎯 Status: ALL ITEMS AVAILABLE - Full order possible
+   📋 Note: 3 items required restocking (orders placed)
+
+============================================================
+📋 STEP: GENERATE_QUOTE
+============================================================
+💰 Quote Generated:
+   Total Amount: $1,386.00 USD
+   Line Items: 3
+
+📋 Quote Breakdown:
+   • A4 paper: 10000 units @ $0.07/unit
+     Discount: 10.0%
+     Subtotal: $630.00
+   • Bright-colored paper: 5000 units @ $0.15/unit
+     Discount: 10.0%
+     Subtotal: $675.00
+   • Cardstock: 500 units @ $0.18/unit
+     Discount: 10.0%
+     Subtotal: $81.00
+
+📊 Quote Summary:
+   Total Quantity: 15500 units
+   Average Price per Unit: $0.09
+
+📝 Notes: 10% discount applied for orders >= 100 units as per current pricing policy.
+
+============================================================
+📋 STEP: FINALIZE_ORDER
+============================================================
+📋 Order Processing:
+   ✅ Order Status: SUCCESSFUL
+   🔢 Order ID: ORD-1754233339
+   📝 Message: Order completed successfully. Created 3 transactions. Total: $1386.0.
+
+💰 Financial Impact:
+   Revenue Generated: $1,386.00
+   Updated Cash Balance: $43,759.07
+   Updated Inventory Value: $6,921.43
+   Updated Total Assets: $50,680.50
+Code execution failed at line 'inventory_summary = [
+    {
+        "item_name": item['item_name'\],
+        "stock": float(item['stock'\]),
+        "value": float(item['value'\]),
+    }
+    for item in [
+        {'item_name': 'Paper plates', 'stock': np.float64(444.0), 'value': np.float64(44.40)},
+        {'item_name': 'Standard copy paper', 'stock': np.float64(5159.0), 'value': np.float64(206.36)},
+        # ... (continuing with other items in similar structure)
+    \] if item['stock'\] > 0  # Filtering by stock being positive
+]' due to: InterpreterError: The variable `np` is not defined.
+
+============================================================
+📋 STEP: REPORTING
+============================================================
+📊 Final Business Report:
+   Status: SUCCESS
+   Message: Order placed successfully.
+
+💼 Business Metrics:
+   Order Value: $1,386.00
+   Items Sold: 3
+   ✅ Transaction: COMPLETED
+✅ Status: success
+📝 Message: Order placed successfully.
+💰 Quote: $1386.00 for 3 items
+📊 Updated: Cash $43759.07 | Inventory $6921.43 | Total Assets $50680.50
+
+📋 Request 16/20
+🏢 Context: school teacher organizing assembly
+📅 Date: 2025-04-13
+💰 Cash: $43759.07 | 📦 Inventory: $6921.43
+📝 Request: I would like to place an order for 500 sheets of A4 printer paper, 200 sheets of...
+🔄 Running orchestrator pipeline...
+
+============================================================
+📋 STEP: PARSE
+============================================================
+📝 Original Request: I would like to place an order for 500 sheets of A4 printer paper, 200 sheets of colorful construction paper, and 100 sheets of poster board. I need these supplies delivered by April 15, 2025, in time for our assembly event. (Requested for 2025-04-13)
+📅 Quote Request Date: 2025-04-13
+✅ Successfully parsed 3 items:
+   • A4 paper: 500 units
+   • Construction paper: 200 units
+   • Large poster paper (24x36 inches): 100 units
+   No unmatched items found.
+🚚 Requested Delivery Date: 2025-04-15
+
+============================================================
+📋 STEP: CHECK_INVENTORY
+============================================================
+💰 Current Financial Position:
+   Cash Balance: $43,759.07
+   Inventory Value: $6,921.43
+   Total Assets: $50,680.50
+
+📦 Inventory Analysis:
+   ✅ Fulfillable Items: 3
+   ❌ Unfulfillable Items: 0
+
+✅ Items Available for Fulfillment:
+   • A4 paper: 500 units
+   • Construction paper: 200 units
+   • Large poster paper (24x36 inches): 100 units
+
+🎯 Status: ALL ITEMS AVAILABLE - Full order possible
+
+============================================================
+📋 STEP: GENERATE_QUOTE
+============================================================
+💰 Quote Generated:
+   Total Amount: $159.35 USD
+   Line Items: 3
+
+📋 Quote Breakdown:
+   • A4 paper: 500 units @ $0.07/unit
+     Discount: 15.0%
+     Subtotal: $29.75
+   • Construction paper: 200 units @ $0.09/unit
+     Discount: 10.0%
+     Subtotal: $16.20
+   • Large poster paper (24x36 inches): 100 units @ $1.26/unit
+     Discount: 10.0%
+     Subtotal: $113.40
+
+📊 Quote Summary:
+   Total Quantity: 800 units
+   Average Price per Unit: $0.20
+
+📝 Notes: Discounts applied based on quantity: 15.0% discount applied on A4 paper for ordering 500 units., 10.0% discount applied on Construction paper for ordering 200 units., 10.0% discount applied on Large poster paper (24x36 inches) for ordering 100 units.
+
+============================================================
+📋 STEP: FINALIZE_ORDER
+============================================================
+📋 Order Processing:
+   ✅ Order Status: SUCCESSFUL
+   🔢 Order ID: ORD-1754233495
+   📝 Message: Order completed successfully. Created 3 transactions: [1, 2, 3]. Total: $159.35 for 800 items.
+
+💰 Financial Impact:
+   Revenue Generated: $159.35
+   Updated Cash Balance: $43,918.42
+   Updated Inventory Value: $6,782.43
+   Updated Total Assets: $50,700.85
+
+============================================================
+📋 STEP: REPORTING
+============================================================
+📊 Final Business Report:
+   Status: SUCCESS
+   Message: Order placed successfully.
+
+💼 Business Metrics:
+   Order Value: $159.35
+   Items Sold: 3
+   ✅ Transaction: COMPLETED
+✅ Status: success
+📝 Message: Order placed successfully.
+💰 Quote: $159.35 for 3 items
+📊 Updated: Cash $43918.42 | Inventory $6782.43 | Total Assets $50700.85
+
+📋 Request 17/20
+🏢 Context: restaurant manager organizing reception
+📅 Date: 2025-04-14
+💰 Cash: $43918.42 | 📦 Inventory: $6782.43
+📝 Request: I would like to place a medium order for the following paper supplies for our up...
+🔄 Running orchestrator pipeline...
+
+============================================================
+📋 STEP: PARSE
+============================================================
+📝 Original Request: I would like to place a medium order for the following paper supplies for our upcoming reception:
+
+- 1000 sheets of A4 white printer paper
+- 500 sheets of A3 colored paper (assorted colors)
+- 2000 table napkins (white)
+- 1000 paper cups (biodegradable)
+- 500 paper plates (biodegradable)
+
+I need these supplies delivered by April 15, 2025. Thank you. (Requested for 2025-04-14)
+📅 Quote Request Date: 2025-04-14
+✅ Successfully parsed 5 items:
+   • A4 paper: 1000 units
+   • Bright-colored paper: 500 units
+   • Paper napkins: 2000 units
+   • Paper cups: 1000 units
+   • Paper plates: 500 units
+   No unmatched items found.
+🚚 Requested Delivery Date: 2025-04-15
+FUNC (get_supplier_delivery_date): Calculating for qty 500 from date string '2025-04-14'
+FUNC (get_supplier_delivery_date): Calculating for qty 2000 from date string '2025-04-14'
+FUNC (get_supplier_delivery_date): Calculating for qty 1000 from date string '2025-04-14'
+FUNC (get_supplier_delivery_date): Calculating for qty 500 from date string '2025-04-14'
+
+============================================================
+📋 STEP: CHECK_INVENTORY
+============================================================
+💰 Current Financial Position:
+   Cash Balance: $43,918.42
+   Inventory Value: $6,782.43
+   Total Assets: $50,700.85
+
+📦 Inventory Analysis:
+   ✅ Fulfillable Items: 1
+   ❌ Unfulfillable Items: 4
+
+✅ Items Available for Fulfillment:
+   • A4 paper: 1000 units
+
+❌ Items NOT Available:
+   • Bright-colored paper: 500 units (out of stock or delivery issues)
+   • Paper napkins: 2000 units (out of stock or delivery issues)
+   • Paper cups: 1000 units (out of stock or delivery issues)
+   • Paper plates: 500 units (out of stock or delivery issues)
+
+⚠️ Status: PARTIAL FULFILLMENT - Some items unavailable
+
+============================================================
+📋 STEP: GENERATE_QUOTE
+============================================================
+💰 Quote Generated:
+   Total Amount: $63.00 USD
+   Line Items: 1
+
+📋 Quote Breakdown:
+   • A4 paper: 1000 units @ $0.07/unit
+     Discount: 10.0%
+     Subtotal: $63.00
+
+📊 Quote Summary:
+   Total Quantity: 1000 units
+   Average Price per Unit: $0.06
+
+📝 Notes: 10.0% bulk discount applied for orders >= 1000 units based on historical pricing patterns.
+
+============================================================
+📋 STEP: FINALIZE_ORDER
+============================================================
+📋 Order Processing:
+   ✅ Order Status: SUCCESSFUL
+   🔢 Order ID: ORD-1754233602
+   📝 Message: Order completed successfully. Created 1 transactions: [1]. Total: $63.00.
+
+💰 Financial Impact:
+   Revenue Generated: $63.00
+   Updated Cash Balance: $43,981.42
+   Updated Inventory Value: $6,732.43
+   Updated Total Assets: $50,713.85
+
+============================================================
+📋 STEP: REPORTING
+============================================================
+📊 Final Business Report:
+   Status: PARTIAL
+   Message: Partially fulfilled. See order details.
+
+💼 Business Metrics:
+   Order Value: $63.00
+   Items Sold: 1
+   ⚠️ Transaction: PARTIAL FULFILLMENT
+
+❌ Unfulfilled Items: 4
+   • Bright-colored paper: 500 units
+   • Paper napkins: 2000 units
+   • Paper cups: 1000 units
+   • Paper plates: 500 units
+✅ Status: partial
+📝 Message: Partially fulfilled. See order details.
+💰 Quote: $63.00 for 1 items
+📊 Updated: Cash $43981.42 | Inventory $6732.43 | Total Assets $50713.85
+
+📋 Request 18/20
+🏢 Context: office manager organizing ceremony
+📅 Date: 2025-04-14
+💰 Cash: $43981.42 | 📦 Inventory: $6732.43
+📝 Request: I would like to place a medium order for the following paper supplies for our up...
+🔄 Running orchestrator pipeline...
+
+============================================================
+📋 STEP: PARSE
+============================================================
+📝 Original Request: I would like to place a medium order for the following paper supplies for our upcoming ceremony: 500 sheets of high-quality white cardstock, 1000 sheets of standard printing paper, and 200 sheets of colored paper in assorted colors. I need these supplies delivered by April 15, 2025. (Requested for 2025-04-14)
+📅 Quote Request Date: 2025-04-14
+✅ Successfully parsed 3 items:
+   • Cardstock: 500 units
+   • Standard copy paper: 1000 units
+   • Bright-colored paper: 200 units
+   No unmatched items found.
+🚚 Requested Delivery Date: 2025-04-15
+FUNC (get_supplier_delivery_date): Calculating for qty 327 from date string '2025-04-14'
+
+============================================================
+📋 STEP: CHECK_INVENTORY
+============================================================
+💰 Current Financial Position:
+   Cash Balance: $43,981.42
+   Inventory Value: $6,732.43
+   Total Assets: $50,713.85
+
+📦 Inventory Analysis:
+   ✅ Fulfillable Items: 2
+   ❌ Unfulfillable Items: 1
+
+✅ Items Available for Fulfillment:
+   • Standard copy paper: 1000 units
+   • Bright-colored paper: 200 units
+
+❌ Items NOT Available:
+   • Cardstock: 500 units (out of stock or delivery issues)
+
+⚠️ Status: PARTIAL FULFILLMENT - Some items unavailable
+
+============================================================
+📋 STEP: GENERATE_QUOTE
+============================================================
+💰 Quote Generated:
+   Total Amount: $72.00 USD
+   Line Items: 2
+
+📋 Quote Breakdown:
+   • Standard copy paper: 1000 units @ $0.05/unit
+     Discount: 10.0%
+     Subtotal: $45.00
+   • Bright-colored paper: 200 units @ $0.15/unit
+     Discount: 10.0%
+     Subtotal: $27.00
+
+📊 Quote Summary:
+   Total Quantity: 1200 units
+   Average Price per Unit: $0.06
+
+📝 Notes: 10% bulk discount applied due to order quantities.
+
+============================================================
+📋 STEP: FINALIZE_ORDER
+============================================================
+📋 Order Processing:
+   ✅ Order Status: SUCCESSFUL
+   🔢 Order ID: ORD-1754233710
+   📝 Message: Order completed successfully. Created 2 transactions: [1, 2]. Total: 72.0 USD for 1200 items.
+
+💰 Financial Impact:
+   Revenue Generated: $72.00
+   Updated Cash Balance: $44,053.42
+   Updated Inventory Value: $6,668.43
+   Updated Total Assets: $50,721.85
+
+============================================================
+📋 STEP: REPORTING
+============================================================
+📊 Final Business Report:
+   Status: PARTIAL
+   Message: Partially fulfilled. See order details.
+
+💼 Business Metrics:
+   Order Value: $72.00
+   Items Sold: 2
+   ⚠️ Transaction: PARTIAL FULFILLMENT
+
+❌ Unfulfilled Items: 1
+   • Cardstock: 500 units
+✅ Status: partial
+📝 Message: Partially fulfilled. See order details.
+💰 Quote: $72.00 for 2 items
+📊 Updated: Cash $44053.42 | Inventory $6668.43 | Total Assets $50721.85
+
+📋 Request 19/20
+🏢 Context: city hall clerk organizing exhibition
+📅 Date: 2025-04-15
+💰 Cash: $44053.42 | 📦 Inventory: $6668.43
+📝 Request: Dear [Manufacturer's Name],
+
+I would like to place an order for the following pa...
+🔄 Running orchestrator pipeline...
+
+============================================================
+📋 STEP: PARSE
+============================================================
+📝 Original Request: Dear [Manufacturer's Name],
+
+I would like to place an order for the following paper supplies for our upcoming exhibition:
+
+- 2000 sheets of A4 glossy paper
+- 1500 sheets of A3 matte paper
+- 1000 sheets of cardstock in assorted colors
+
+We need the supplies delivered by April 20, 2025.
+
+Thank you! (Requested for 2025-04-15)
+📅 Quote Request Date: 2025-04-15
+✅ Successfully parsed 3 items:
+   • A4 paper: 2000 units
+   • Matte paper: 1500 units
+   • Cardstock: 1000 units
+   No unmatched items found.
+🚚 Requested Delivery Date: 2025-04-20
+FUNC (get_supplier_delivery_date): Calculating for qty 1500 from date string '2025-04-15'
+FUNC (get_supplier_delivery_date): Calculating for qty 1000 from date string '2025-04-15'
+
+============================================================
+📋 STEP: CHECK_INVENTORY
+============================================================
+💰 Current Financial Position:
+   Cash Balance: $43,903.42
+   Inventory Value: $6,818.43
+   Total Assets: $50,721.85
+
+📦 Inventory Analysis:
+   ✅ Fulfillable Items: 1
+   ❌ Unfulfillable Items: 1
+   🔄 Restockable Items: 1
+   📋 Stock Orders Created: 1
+
+✅ Items Available for Fulfillment:
+   • A4 paper: 2000 units
+
+❌ Items NOT Available:
+   • Matte paper: 1500 units (out of stock or delivery issues)
+
+🔄 Items Available for Restocking:
+   • Cardstock: Can be restocked from suppliers
+
+📋 Stock Orders Created:
+   • Cardstock: 1000 units @ $150.00
+   💰 Total Order Cost: $150.00
+
+⚠️ Status: PARTIAL FULFILLMENT - Some items unavailable
+   📋 Note: 1 items restocked (orders placed)
+   � Note: 1 additional items can be restocked if needed
+
+============================================================
+📋 STEP: GENERATE_QUOTE
+============================================================
+💰 Quote Generated:
+   Total Amount: $140.00 USD
+   Line Items: 1
+
+📋 Quote Breakdown:
+   • A4 paper: 2000 units @ $0.07/unit
+     Subtotal: $140.00
+
+📊 Quote Summary:
+   Total Quantity: 2000 units
+   Average Price per Unit: $0.07
+
+============================================================
+📋 STEP: FINALIZE_ORDER
+============================================================
+📋 Order Processing:
+   ✅ Order Status: SUCCESSFUL
+   🔢 Order ID: ORD-1754233807
+   📝 Message: Order completed successfully. Created 1 transactions: [1]. Total: $140.00.
+
+💰 Financial Impact:
+   Revenue Generated: $140.00
+   Updated Cash Balance: $44,043.42
+   Updated Inventory Value: $6,718.43
+   Updated Total Assets: $50,761.85
+
+============================================================
+📋 STEP: REPORTING
+============================================================
+📊 Final Business Report:
+   Status: PARTIAL
+   Message: Partially fulfilled. See order details.
+
+💼 Business Metrics:
+   Order Value: $140.00
+   Items Sold: 1
+   ⚠️ Transaction: PARTIAL FULFILLMENT
+
+❌ Unfulfilled Items: 1
+   • Matte paper: 1500 units
+✅ Status: partial
+📝 Message: Partially fulfilled. See order details.
+💰 Quote: $140.00 for 1 items
+📊 Updated: Cash $44043.42 | Inventory $6718.43 | Total Assets $50761.85
+
+📋 Request 20/20
+🏢 Context: restaurant manager organizing concert
+📅 Date: 2025-04-17
+💰 Cash: $44043.42 | 📦 Inventory: $6718.43
+📝 Request: I would like to place a large order for the following paper supplies for our upc...
+🔄 Running orchestrator pipeline...
+
+============================================================
+📋 STEP: PARSE
+============================================================
+📝 Original Request: I would like to place a large order for the following paper supplies for our upcoming concert: 5,000 flyers, 2,000 posters, and 10,000 tickets. We need these items delivered by May 15, 2025, to ensure adequate time for distribution and promotion. Thank you! (Requested for 2025-04-17)
+📅 Quote Request Date: 2025-04-17
+✅ Successfully parsed 2 items:
+   • Flyers: 5000 units
+   • Poster paper: 2000 units
+⚠️ Unmatched Items: 1
+   • Tickets
+🚚 Requested Delivery Date: 2025-05-15
+
+============================================================
+📋 STEP: CHECK_INVENTORY
+============================================================
+💰 Current Financial Position:
+   Cash Balance: $44,043.42
+   Inventory Value: $6,718.43
+   Total Assets: $50,761.85
+
+📦 Inventory Analysis:
+   ✅ Fulfillable Items: 2
+   ❌ Unfulfillable Items: 0
+
+✅ Items Available for Fulfillment:
+   • Flyers: 5000 units
+   • Poster paper: 2000 units
+
+🎯 Status: ALL ITEMS AVAILABLE - Full order possible
+
+============================================================
+📋 STEP: GENERATE_QUOTE
+============================================================
+💰 Quote Generated:
+   Total Amount: $1,394.00 USD
+   Line Items: 2
+
+📋 Quote Breakdown:
+   • Flyers: 5000 units @ $0.20/unit
+     Discount: 15.0%
+     Subtotal: $850.00
+   • Poster paper: 2000 units @ $0.32/unit
+     Discount: 15.0%
+     Subtotal: $544.00
+
+📊 Quote Summary:
+   Total Quantity: 7000 units
+   Average Price per Unit: $0.20
+
+📝 Notes: 15.0% discount applied for Flyers due to bulk order.. 15.0% discount applied for Poster paper due to bulk order.
+
+============================================================
+📋 STEP: FINALIZE_ORDER
+============================================================
+📋 Order Processing:
+   ✅ Order Status: SUCCESSFUL
+   🔢 Order ID: ORD-1754233908
+   📝 Message: Order completed successfully. Created 2 transactions: ['Transaction-1', 'Transaction-2']. Total: $1394.00.
+
+💰 Financial Impact:
+   Revenue Generated: $1,394.00
+   Updated Cash Balance: $45,437.42
+   Updated Inventory Value: $5,468.43
+   Updated Total Assets: $50,905.85
+
+============================================================
+📋 STEP: REPORTING
+============================================================
+📊 Final Business Report:
+   Status: SUCCESS
+   Message: Order placed successfully.
+
+💼 Business Metrics:
+   Order Value: $1,394.00
+   Items Sold: 2
+   ✅ Transaction: COMPLETED
+✅ Status: success
+📝 Message: Order placed successfully.
+💰 Quote: $1394.00 for 2 items
+📊 Updated: Cash $45437.42 | Inventory $5468.43 | Total Assets $50905.85
+
+=================================================================
+🏆 INTEGRATION TEST SUMMARY
+=================================================================
+📊 Total Requests Processed: 20
+✅ Successful: 20
+❌ Failed: 0
+📈 Success Rate: 100.0%
+
+💰 Final Financial State (2025-04-17):
+   Cash Balance: $45437.42
+   Inventory Value: $5468.43
+   Total Assets: $50905.85
+   Total Revenue Generated: $6787.35
+
+📄 Detailed results saved to: integration_test_results.csv
+
+🎯 Integration test completed successfully!

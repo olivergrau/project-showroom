@@ -18,6 +18,7 @@ class ParserResult(BaseModel):
     delivery_date: str
     unmatched_items: List[str] = []
     status: Literal["success", "partial", "declined"] = "success"
+    error_message: Optional[str] = None
 
 class InventoryCheckResult(BaseModel):
     fulfillable_items: List[QuoteItem]

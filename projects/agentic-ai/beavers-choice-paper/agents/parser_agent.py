@@ -21,7 +21,7 @@ def get_all_inventory_tool(as_of_date: str) -> Dict[str, Dict]:
     Args:
         as_of_date (str): ISO-formatted cutoff date (YYYY-MM-DD).
     Returns:
-        Dict[str, Dict]: Dictionary with item names as keys and details (stock, unit_price, category) as values.
+        Dict[str, Dict]: Dictionary with item names as keys and details (stock, buy_unit_price, sell_unit_price, category) as values.
     """
     return get_all_inventory(as_of_date)
 
@@ -134,7 +134,7 @@ You must:
 
 1. **Fetch the official inventory**
    - Use `get_all_inventory_tool(quote_request_date)` to retrieve the full inventory with item details.
-   - The tool returns a dictionary where each item name maps to {"stock": int, "unit_price": float, "category": str}.
+   - The tool returns a dictionary where each item name maps to {"stock": int, "buy_unit_price": float, "sell_unit_price": float, "category": str}.
    - Extract the item names (dictionary keys) for matching purposes.
    - You must not invent or assume inventory items beyond this list.
 
@@ -184,7 +184,7 @@ Example:
 ```json
 {
   "items": [
-    { "name": "Inventory item name", "quantity": 100, "unit_price": 5.0, "category": "paper" },
+    { "name": "Inventory item name", "quantity": 100, "sell_unit_price": 5.0, "category": "paper" },
   ],
   "delivery_date": "YYYY-MM-DD",
   "unmatched_items": ["original term 1", "original term 2"],
@@ -235,13 +235,13 @@ class QuoteRequestParserAgent:
                 quote_items.append(QuoteItem(
                     name=item_data.get("name", ""),
                     quantity=item_data.get("quantity", 0), 
-                    unit_price=item_data.get("unit_price", 0.0),
+                    unit_price=item_data.get("sell_unit_price", 0.0),
                     category=item_data.get("category", None)                   
                 ))
             
             # Return structured ParserResult
             return ParserResult(
-                items=quote_items,
+                items=quote_items,                
                 delivery_date=parsed_data.get("delivery_date", None),
                 unmatched_items=parsed_data.get("unmatched_items", []),
                 status=parsed_data.get("status", "success" if quote_items else "declined")
@@ -251,9 +251,10 @@ class QuoteRequestParserAgent:
             print(f"Error in QuoteRequestParserAgent: {e}")
             return ParserResult(
                 items=[],
-                delivery_date=None,
-                unmatched_items=[quote_request],
-                status="declined"
+                delivery_date="01-01-1970",  # Default date if parsing fails
+                unmatched_items=[],
+                status="declined",
+                error_message=str(e)
             )
 
     def _parse_agent_response(self, response: str) -> Dict:

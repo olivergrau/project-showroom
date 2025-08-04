@@ -8,7 +8,8 @@ from tools.tools import (
     get_stock_level,
     get_cash_balance,
     get_supplier_delivery_date,
-    create_transaction
+    create_transaction,
+    get_buy_unit_price
 )
 from json_repair import repair_json
 
@@ -60,6 +61,23 @@ def get_supplier_delivery_date_tool(requested_date: str, quantity: int) -> str:
     """
     return get_supplier_delivery_date(requested_date, quantity)
 
+@tool
+def get_buy_unit_price_tool(item_name: str) -> float:
+    """
+    Returns the buy unit price for a given item from the inventory.
+
+    Args:
+        item_name (str): The name of the item to get buy pricing for.
+
+    Returns:
+        float: Buy unit price for the item, or 0.0 if not found.
+    """
+    df = get_buy_unit_price(item_name)
+    if not df.empty:
+        return float(df.iloc[0]["buy_unit_price"])
+    else:
+        return 0.0
+
 
 class TransactionData(TypedDict):
     item_name: str
@@ -71,12 +89,12 @@ class TransactionData(TypedDict):
 @tool
 def create_transaction_tool(data: List[TransactionData]) -> List[int]:
     """
-    Records one or more transactions of type 'stock_orders' or 'sales' into the database.
+    Records one or more transactions of type 'stock_orders' only into the database.
 
     Args:
         data (List[TransactionData]): A list of transaction records to create. Each must contain:
             - item_name (str): Name of the item involved
-            - transaction_type (str): 'stock_orders' or 'sales'
+            - transaction_type (str): 'stock_orders'
             - quantity (int): Number of units involved
             - price (float): Total price for the transaction
             - date (str): Transaction date in ISO format (YYYY-MM-DD)
@@ -88,7 +106,7 @@ def create_transaction_tool(data: List[TransactionData]) -> List[int]:
     for record in data:
         inserted_id = create_transaction(
             item_name=record["item_name"],
-            transaction_type=record["transaction_type"],
+            transaction_type="stock_orders",  # Only stock orders
             quantity=record["quantity"],
             price=record["price"],
             date=record["date"],
@@ -107,10 +125,11 @@ You have access to these tools:
 - get_stock_level_tool(item_name, as_of_date): returns available stock (as int) for a specific item as of the given date
 - get_supplier_delivery_date_tool(requested_date, quantity): returns delivery date in ISO format (YYYY-MM-DD) as a string
 - get_cash_balance_tool(as_of_date): returns current cash balance as a float
+- get_buy_unit_price_tool(item_name): returns the buy unit price (float) for an item
 - create_transaction_tool(data): creates stock order transactions; data must be a list of {"item_name": ..., "quantity": ...}
 
 You will receive:
-- quote_items: list of dicts, each with 'name' and 'quantity' and 'unit_price' fields
+- quote_items: list of dicts, each with 'name' and 'quantity'
 - requested_delivery_date: string in ISO format YYYY-MM-DD
 - quote_request_date: string in ISO format YYYY-MM-DD (the date when the quote was requested - use this as "today")
 
@@ -137,12 +156,14 @@ Your task:
             - item_name: the item name
             - transaction_type: "stock_orders"
             - quantity: the quantity needed for restocking
-            - price: the cost for this restock order
+            - price: quantity * get_buy_unit_price_tool(item_name) (use buy price for stock orders)
             - date: the quote_request_date
-        b. Call create_transaction_tool with the list of transaction records
+        b. Call create_transaction_tool with the list of transaction records to create stock orders.
         c. Save the transaction details for the final result
         d. Mark these items as fulfillable since they will be restocked
    c. If cash is insufficient, mark restockable items as unfulfillable.
+
+   DO NOT FORGET: to execute the created stock order transactions using create_transaction_tool.
 
 3. If all items are already in stock, **do not** call get_cash_balance_tool or create_transaction_tool.
 
@@ -183,7 +204,7 @@ class InventoryAgent:
         )
 
         self.agent = CodeAgent(
-            tools=[get_cash_balance_tool, get_stock_level_tool, get_supplier_delivery_date_tool, create_transaction_tool],
+            tools=[get_cash_balance_tool, get_stock_level_tool, get_supplier_delivery_date_tool, get_buy_unit_price_tool, create_transaction_tool],
             model=self.model,
             instructions=SYSTEM_INSTRUCTIONS,
             max_steps=20,

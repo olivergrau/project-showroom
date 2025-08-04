@@ -201,7 +201,7 @@ class ConsoleDomainPrinter(DomainInfoPrinter):
             total_quantity = 0
             for item in quote.line_items:
                 print(f"   • {item.name}: {item.quantity} units @ ${item.unit_price:.2f}/unit")
-                if hasattr(item, 'discount_percent') and item.discount_percent > 0:
+                if hasattr(item, 'discount_percent') and item.discount_percent is not None and item.discount_percent > 0:
                     print(f"     Discount: {item.discount_percent}%")
                 print(f"     Subtotal: ${item.subtotal:.2f}")
                 total_quantity += item.quantity

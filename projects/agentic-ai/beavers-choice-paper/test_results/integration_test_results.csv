@@ -5,12 +5,12 @@ request_id,request_date,job_context,event_context,original_request,response_summ
 - 100 sheets of heavy cardstock (white)
 - 100 sheets of colored paper (assorted colors)
 
-I need these supplies delivered by April 15, 2025. Thank you.",[SUCCESS] Order placed successfully.,42875.44,7118.060000000002,49993.50000000001,58.5,success
-2,2025-04-03,hotel manager,parade,"I would like to place an order for 500 sheets of colorful poster paper, 300 roll of streamers, and 200 balloons for the parade. Please deliver the supplies by April 15, 2025. Thank you.",[SUCCESS] Order placed successfully.,42849.19,7118.060000000002,49967.25000000001,183.75,success
-3,2025-04-04,school board resouorce manager,conference,"I need to order 10,000 sheets of A4 paper, 5,000 sheets of A3 paper, and 500 reams of printer paper. The supplies must be delivered by April 15, 2025, for our upcoming conference. Please confirm the order and delivery schedule.",[SUCCESS] Order placed successfully.,42771.19,7118.060000000002,49889.25000000001,442.0,success
-4,2025-04-05,non-profit director,reception,"I need 500 sheets of high-quality, recycled cardstock in various colors for our reception, along with 250 sheets of A4 size printer paper. I need the order delivered by April 15, 2025.",[SUCCESS] Order placed successfully.,42846.19,7030.560000000002,49876.75000000001,75.0,success
-5,2025-04-05,school teacher,party,"I would like to place an order for 500 sheets of 8.5""x11"" colored paper, 300 sheets of cardstock in various colors, and 200 rolls of decorative washi tape. I need these supplies delivered by April 15, 2025, for an upcoming party. Thank you!",[SUCCESS] Order placed successfully.,42870.19,6990.560000000002,49860.75000000001,119.0,success
-6,2025-04-06,school teacher,assembly,"I would like to order 500 sheets of colorful construction paper, 300 sheets of white printer paper, and 200 sheets of cardstock in various colors. We need these supplies delivered by April 15, 2025, for our upcoming assembly.",[SUCCESS] Order placed successfully.,42895.44,6955.560000000002,49851.00000000001,70.25,success
+I need these supplies delivered by April 15, 2025. Thank you.",[SUCCESS] Order placed successfully.,42860.37,7145.13,50005.5,40.5,success
+2,2025-04-03,hotel manager,parade,"I would like to place an order for 500 sheets of colorful poster paper, 300 roll of streamers, and 200 balloons for the parade. Please deliver the supplies by April 15, 2025. Thank you.",[SUCCESS] Order placed successfully.,43074.57,6955.13,50029.7,214.2,success
+3,2025-04-04,school board resouorce manager,conference,"I need to order 10,000 sheets of A4 paper, 5,000 sheets of A3 paper, and 500 reams of printer paper. The supplies must be delivered by April 15, 2025, for our upcoming conference. Please confirm the order and delivery schedule.",[SUCCESS] Order placed successfully.,42408.56999999999,7730.13,50138.69999999999,884.0,success
+4,2025-04-05,non-profit director,reception,"I need 500 sheets of high-quality, recycled cardstock in various colors for our reception, along with 250 sheets of A4 size printer paper. I need the order delivered by April 15, 2025.",[SUCCESS] Order placed successfully.,42500.81999999999,7642.63,50143.44999999999,92.25,success
+5,2025-04-05,school teacher,party,"I would like to place an order for 500 sheets of 8.5""x11"" colored paper, 300 sheets of cardstock in various colors, and 200 rolls of decorative washi tape. I need these supplies delivered by April 15, 2025, for an upcoming party. Thank you!",[SUCCESS] Order placed successfully.,42649.67,7507.63,50157.299999999996,148.85,success
+6,2025-04-06,school teacher,assembly,"I would like to order 500 sheets of colorful construction paper, 300 sheets of white printer paper, and 200 sheets of cardstock in various colors. We need these supplies delivered by April 15, 2025, for our upcoming assembly.",[SUCCESS] Order placed successfully.,42751.67,7432.63,50184.299999999996,132.0,success
 7,2025-04-07,business owner,exhibition,"I would like to place a large order for various types of paper supplies for our upcoming exhibition. We need the following items:
 
 - 500 sheets of glossy A4 paper
@@ -18,7 +18,7 @@ I need these supplies delivered by April 15, 2025. Thank you.",[SUCCESS] Order p
 - 300 poster boards (24"" x 36"")
 - 200 sheets of heavyweight cardstock
 
-We need these supplies delivered by April 15, 2025. Thank you.",[SUCCESS] Order placed successfully.,43206.69,6595.560000000002,49802.25000000001,396.25,success
+We need these supplies delivered by April 15, 2025. Thank you.",[PARTIAL] Partially fulfilled. See order details.,42807.869999999995,7427.63,50235.49999999999,476.2,success
 8,2025-04-07,school board resouorce manager,ceremony,"I would like to place a large order for the following paper supplies for an upcoming ceremony: 
 
 - 500 sheets of A4 glossy paper 
@@ -26,27 +26,27 @@ We need these supplies delivered by April 15, 2025. Thank you.",[SUCCESS] Order 
 - 2000 sheets of A5 colored paper 
 - 3000 sheets of A4 recycled paper 
 
-Please ensure delivery by April 15, 2025. Thank you.",[DECLINED] Unable to fulfill any items.,42486.69,7315.560000000002,49802.25000000001,0.0,success
+Please ensure delivery by April 15, 2025. Thank you.",[SUCCESS] Order placed successfully.,43123.369999999995,7247.63,50370.99999999999,895.5,success
 9,2025-04-07,city hall clerk,reception,"I would like to place an order for the following paper supplies for the reception: 
 
 - 200 sheets of A4 white printer paper
 - 100 sheets of A3 glossy paper
 - 50 packets of 100% recycled kraft paper envelopes
 
-I need these supplies delivered by April 10, 2025. Thank you.",[PARTIAL] Partially fulfilled. See order details.,42509.69,7290.560000000002,49800.25000000001,48.0,success
-13,2025-04-08,school principal,gathering,"I would like to order 500 sheets of A4 printing paper and 200 sheets of cardstock for our upcoming gathering. Please deliver the supplies by April 10, 2025.",[DECLINED] Unable to fulfill any items.,42509.69,7290.560000000002,49800.25000000001,0.0,success
-12,2025-04-08,city hall clerk,party,"I would like to order 200 sheets of colorful cardstock, 500 sheets of standard printer paper, and 100 paper napkins for our upcoming party. Please deliver these supplies by April 15, 2025.",[SUCCESS] Order placed successfully.,42546.490000000005,7248.560000000002,49795.05000000001,36.8,success
-10,2025-04-08,business owner,show,"I would like to place an order for 500 sheets of high-quality glossy paper and 300 sheets of sturdy cardstock for our upcoming show. We need the supplies delivered by April 15, 2025.",[SUCCESS] Order placed successfully.,42631.990000000005,7148.560000000002,49780.55000000001,130.5,success
-11,2025-04-08,event manager,exhibition,"I would like to order 500 sheets of A3 glossy paper and 300 sheets of A4 matte paper for our exhibition. The supplies are needed by April 15, 2025. Thank you.",[SUCCESS] Order placed successfully.,42770.59,6994.560000000002,49765.15,138.6,success
-14,2025-04-09,city hall clerk,performance,"I would like to place a large order for high-quality paper supplies for our upcoming performance. We need 5,000 sheets of A4 paper, 2,000 sheets of poster paper in various colors, and 500 sheets of cardstock. Please deliver these supplies by April 15, 2025. Thank you.",[PARTIAL] Partially fulfilled. See order details.,42920.59,6844.560000000002,49765.15,150.0,success
+I need these supplies delivered by April 10, 2025. Thank you.",[SUCCESS] Order placed successfully.,43165.47,7212.63,50378.1,42.1,success
+13,2025-04-08,school principal,gathering,"I would like to order 500 sheets of A4 printing paper and 200 sheets of cardstock for our upcoming gathering. Please deliver the supplies by April 10, 2025.",[SUCCESS] Order placed successfully.,43229.369999999995,7157.63,50386.99999999999,63.9,success
+12,2025-04-08,city hall clerk,party,"I would like to order 200 sheets of colorful cardstock, 500 sheets of standard printer paper, and 100 paper napkins for our upcoming party. Please deliver these supplies by April 15, 2025.",[SUCCESS] Order placed successfully.,43285.72,7105.63,50391.35,56.35,success
+10,2025-04-08,business owner,show,"I would like to place an order for 500 sheets of high-quality glossy paper and 300 sheets of sturdy cardstock for our upcoming show. We need the supplies delivered by April 15, 2025.",[SUCCESS] Order placed successfully.,43301.81999999999,7105.63,50407.44999999999,161.1,success
+11,2025-04-08,event manager,exhibition,"I would like to order 500 sheets of A3 glossy paper and 300 sheets of A4 matte paper for our exhibition. The supplies are needed by April 15, 2025. Thank you.",[SUCCESS] Order placed successfully.,43372.869999999995,7051.63,50424.49999999999,171.05,success
+14,2025-04-09,city hall clerk,performance,"I would like to place a large order for high-quality paper supplies for our upcoming performance. We need 5,000 sheets of A4 paper, 2,000 sheets of poster paper in various colors, and 500 sheets of cardstock. Please deliver these supplies by April 15, 2025. Thank you.",[PARTIAL] Partially fulfilled. See order details.,43548.07,6921.43,50469.5,195.0,success
 15,2025-04-12,event manager,demonstration,"I would like to place a large order for high-quality paper supplies for our upcoming demonstration. Please provide the following:
 
 - 10,000 sheets of A4 white paper
 - 5,000 sheets of A3 colored paper (assorted colors)
 - 500 reams of cardboard for signage
 
-I need these supplies delivered by April 15, 2025. Thank you.",[PARTIAL] Partially fulfilled. See order details.,42975.265,6769.560000000002,49744.825000000004,237.60000000000002,success
-16,2025-04-13,school teacher,assembly,"I would like to place an order for 500 sheets of A4 printer paper, 200 sheets of colorful construction paper, and 100 sheets of poster board. I need these supplies delivered by April 15, 2025, in time for our assembly event.",[PARTIAL] Partially fulfilled. See order details.,43010.365000000005,6730.560000000002,49740.92500000001,35.1,success
+I need these supplies delivered by April 15, 2025. Thank you.",[SUCCESS] Order placed successfully.,43759.07,6921.43,50680.5,1386.0,success
+16,2025-04-13,school teacher,assembly,"I would like to place an order for 500 sheets of A4 printer paper, 200 sheets of colorful construction paper, and 100 sheets of poster board. I need these supplies delivered by April 15, 2025, in time for our assembly event.",[SUCCESS] Order placed successfully.,43918.42,6782.43,50700.85,159.35,success
 17,2025-04-14,restaurant manager,reception,"I would like to place a medium order for the following paper supplies for our upcoming reception:
 
 - 1000 sheets of A4 white printer paper
@@ -55,8 +55,8 @@ I need these supplies delivered by April 15, 2025. Thank you.",[PARTIAL] Partial
 - 1000 paper cups (biodegradable)
 - 500 paper plates (biodegradable)
 
-I need these supplies delivered by April 15, 2025. Thank you.",[SUCCESS] Order placed successfully.,43083.365000000005,6630.560000000002,49713.92500000001,243.0,success
-18,2025-04-14,office manager,ceremony,"I would like to place a medium order for the following paper supplies for our upcoming ceremony: 500 sheets of high-quality white cardstock, 1000 sheets of standard printing paper, and 200 sheets of colored paper in assorted colors. I need these supplies delivered by April 15, 2025.",[PARTIAL] Partially fulfilled. See order details.,43101.365000000005,6610.560000000002,49711.92500000001,18.0,success
+I need these supplies delivered by April 15, 2025. Thank you.",[PARTIAL] Partially fulfilled. See order details.,43981.42,6732.43,50713.85,63.0,success
+18,2025-04-14,office manager,ceremony,"I would like to place a medium order for the following paper supplies for our upcoming ceremony: 500 sheets of high-quality white cardstock, 1000 sheets of standard printing paper, and 200 sheets of colored paper in assorted colors. I need these supplies delivered by April 15, 2025.",[PARTIAL] Partially fulfilled. See order details.,44053.42,6668.43,50721.85,72.0,success
 19,2025-04-15,city hall clerk,exhibition,"Dear [Manufacturer's Name],
 
 I would like to place an order for the following paper supplies for our upcoming exhibition:
@@ -67,5 +67,5 @@ I would like to place an order for the following paper supplies for our upcoming
 
 We need the supplies delivered by April 20, 2025.
 
-Thank you!",[SUCCESS] Order placed successfully.,43154.365000000005,6510.560000000002,49664.92500000001,423.0,success
-20,2025-04-17,restaurant manager,concert,"I would like to place a large order for the following paper supplies for our upcoming concert: 5,000 flyers, 2,000 posters, and 10,000 tickets. We need these items delivered by May 15, 2025, to ensure adequate time for distribution and promotion. Thank you!",[SUCCESS] Order placed successfully.,42966.865000000005,6510.560000000002,49477.42500000001,1062.5,success
+Thank you!",[PARTIAL] Partially fulfilled. See order details.,44043.42,6718.43,50761.85,140.0,success
+20,2025-04-17,restaurant manager,concert,"I would like to place a large order for the following paper supplies for our upcoming concert: 5,000 flyers, 2,000 posters, and 10,000 tickets. We need these items delivered by May 15, 2025, to ensure adequate time for distribution and promotion. Thank you!",[SUCCESS] Order placed successfully.,45437.42,5468.429999999999,50905.85,1394.0,success

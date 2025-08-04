@@ -9,6 +9,8 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Union
 from sqlalchemy import create_engine, Engine
 
+INITIAL_CASH_BALANCE = 50000.0
+
 # Create an SQLite database
 db_engine = create_engine("sqlite:///db/munder_difflin.db")
 
@@ -78,7 +80,9 @@ def generate_sample_inventory(paper_supplies: list, coverage: float = 1.0, seed:
     This function randomly selects exactly `coverage` × N items from the `paper_supplies` list,
     and assigns each selected item:
     - a random stock quantity between 200 and 800,
-    - a minimum stock level between 50 and 150.
+    - a minimum stock level between 50 and 150,
+    - buy_unit_price from the original unit_price,
+    - sell_unit_price 10-15% higher than buy_unit_price.
 
     The random seed ensures reproducibility of selection and stock levels.
 
@@ -92,7 +96,8 @@ def generate_sample_inventory(paper_supplies: list, coverage: float = 1.0, seed:
         pd.DataFrame: A DataFrame with the selected items and assigned inventory values, including:
                       - item_name
                       - category
-                      - unit_price
+                      - buy_unit_price
+                      - sell_unit_price
                       - current_stock
                       - min_stock_level
     """
@@ -115,10 +120,14 @@ def generate_sample_inventory(paper_supplies: list, coverage: float = 1.0, seed:
     # Construct inventory records
     inventory = []
     for item in selected_items:
+        buy_price = item["unit_price"]
+        sell_price = round(buy_price * np.random.uniform(1.20, 1.40), 2)
+        
         inventory.append({
             "item_name": item["item_name"],
             "category": item["category"],
-            "unit_price": item["unit_price"],
+            "buy_unit_price": buy_price,
+            "sell_unit_price": sell_price,
             "current_stock": np.random.randint(200, 800),  # Realistic stock range
             "min_stock_level": np.random.randint(50, 150)  # Reasonable threshold for reordering
         })
@@ -201,20 +210,20 @@ def init_database(db_engine: Engine, seed: int = 137, debug: bool = False) -> En
         initial_transactions = []
 
         # Create an initial sales transaction (dirty hack for testing)
-        initial_transactions.append({
-            "item_name": None,
-            "transaction_type": "sales",
-            "units": None,
-            "price": 50000.0,
-            "transaction_date": initial_date,
-        })
+        # initial_transactions.append({
+        #     "item_name": None,
+        #     "transaction_type": "sales",
+        #     "units": None,
+        #     "price": 50000.0,
+        #     "transaction_date": initial_date,
+        # })
 
         for _, item in inventory_df.iterrows():
             initial_transactions.append({
                 "item_name": item["item_name"],
                 "transaction_type": "stock_orders",
                 "units": item["current_stock"],
-                "price": item["current_stock"] * item["unit_price"],
+                "price": item["current_stock"] * item["buy_unit_price"],
                 "transaction_date": initial_date,
             })
 
@@ -292,7 +301,7 @@ def get_all_inventory(as_of_date: str) -> Dict[str, Dict]:
 
     This function calculates the net quantity of each item by summing 
     all stock orders and subtracting all sales up to and including the given date.
-    It also includes unit price and category information from the inventory table.
+    It also includes buy price, sell price, and category information from the inventory table.
 
     Only items with positive stock are included in the result.
 
@@ -304,13 +313,14 @@ def get_all_inventory(as_of_date: str) -> Dict[str, Dict]:
             {
                 "item_name": {
                     "stock": int,
-                    "unit_price": float,
+                    "buy_unit_price": float,
+                    "sell_unit_price": float,
                     "category": str
                 }
             }
     """
     # SQL query to compute stock levels per item as of the given date
-    # with unit price and category from inventory table
+    # with buy price, sell price, and category from inventory table
     query = """
         SELECT
             t.item_name,            
@@ -319,13 +329,14 @@ def get_all_inventory(as_of_date: str) -> Dict[str, Dict]:
                 WHEN t.transaction_type = 'sales' THEN -t.units
                 ELSE 0
             END) as stock,
-            i.unit_price,
+            i.buy_unit_price,
+            i.sell_unit_price,
             i.category
         FROM transactions t
         LEFT JOIN inventory i ON t.item_name = i.item_name
         WHERE t.item_name IS NOT NULL
         AND t.transaction_date <= :as_of_date
-        GROUP BY t.item_name, i.unit_price, i.category
+        GROUP BY t.item_name, i.buy_unit_price, i.sell_unit_price, i.category
         HAVING stock > 0
     """
 
@@ -337,7 +348,8 @@ def get_all_inventory(as_of_date: str) -> Dict[str, Dict]:
     for _, row in result.iterrows():
         inventory_dict[row["item_name"]] = {
             "stock": int(row["stock"]),
-            "unit_price": float(row["unit_price"]) if row["unit_price"] is not None else 0.0,
+            "buy_unit_price": float(row["buy_unit_price"]) if row["buy_unit_price"] is not None else 0.0,
+            "sell_unit_price": float(row["sell_unit_price"]) if row["sell_unit_price"] is not None else 0.0,
             "category": row["category"] if row["category"] is not None else "unknown"
         }
     
@@ -382,26 +394,89 @@ def get_stock_level(item_name: str, as_of_date: Union[str, datetime]) -> pd.Data
         params={"item_name": item_name, "as_of_date": as_of_date},
     )
 
-def get_unit_price(item_name: str) -> pd.DataFrame:
+def get_buy_unit_price(item_name: str) -> pd.DataFrame:
     """
-    Retrieve the unit price of a specific item from the inventory table.
+    Retrieve the buy unit price of a specific item from the inventory table.
 
-    This function queries the inventory table to get the unit price for the specified item.
-    Unit prices are assumed to be static in the current implementation.
+    This function queries the inventory table to get the buy unit price for the specified item.
+    Buy prices are assumed to be static in the current implementation.
 
     Args:
         item_name (str): The name of the item to look up.        
 
     Returns:
-        pd.DataFrame: A single-row DataFrame with columns 'item_name' and 'unit_price'.
+        pd.DataFrame: A single-row DataFrame with columns 'item_name' and 'buy_unit_price'.
                      Returns empty DataFrame if item is not found.
     """
     
-    # SQL query to get unit price for the item from inventory table
+    # SQL query to get buy unit price for the item from inventory table
     price_query = """
         SELECT
             item_name,
-            unit_price
+            buy_unit_price
+        FROM inventory
+        WHERE item_name = :item_name
+    """
+
+    # Execute query and return result as a DataFrame
+    return pd.read_sql(
+        price_query,
+        db_engine,
+        params={"item_name": item_name},
+    )
+
+def get_sell_unit_price(item_name: str) -> pd.DataFrame:
+    """
+    Retrieve the sell unit price of a specific item from the inventory table.
+
+    This function queries the inventory table to get the sell unit price for the specified item.
+    Sell prices are assumed to be static in the current implementation.
+
+    Args:
+        item_name (str): The name of the item to look up.        
+
+    Returns:
+        pd.DataFrame: A single-row DataFrame with columns 'item_name' and 'sell_unit_price'.
+                     Returns empty DataFrame if item is not found.
+    """
+    
+    # SQL query to get sell unit price for the item from inventory table
+    price_query = """
+        SELECT
+            item_name,
+            sell_unit_price
+        FROM inventory
+        WHERE item_name = :item_name
+    """
+
+    # Execute query and return result as a DataFrame
+    return pd.read_sql(
+        price_query,
+        db_engine,
+        params={"item_name": item_name},
+    )
+
+def get_unit_price(item_name: str) -> pd.DataFrame:
+    """
+    Retrieve both buy and sell unit prices of a specific item from the inventory table.
+
+    This function queries the inventory table to get both prices for the specified item.
+    Prices are assumed to be static in the current implementation.
+
+    Args:
+        item_name (str): The name of the item to look up.        
+
+    Returns:
+        pd.DataFrame: A single-row DataFrame with columns 'item_name', 'buy_unit_price', and 'sell_unit_price'.
+                     Returns empty DataFrame if item is not found.
+    """
+    
+    # SQL query to get both unit prices for the item from inventory table
+    price_query = """
+        SELECT
+            item_name,
+            buy_unit_price,
+            sell_unit_price
         FROM inventory
         WHERE item_name = :item_name
     """
@@ -470,6 +545,9 @@ def get_cash_balance(as_of_date: Union[str, datetime]) -> float:
     Returns:
         float: Net cash balance as of the given date. Returns 0.0 if no transactions exist or an error occurs.
     """
+
+    initial_cash = INITIAL_CASH_BALANCE
+
     try:
         # Convert date to ISO format if it's a datetime object
         if isinstance(as_of_date, datetime):
@@ -486,7 +564,7 @@ def get_cash_balance(as_of_date: Union[str, datetime]) -> float:
         if not transactions.empty:
             total_sales = transactions.loc[transactions["transaction_type"] == "sales", "price"].sum()
             total_purchases = transactions.loc[transactions["transaction_type"] == "stock_orders", "price"].sum()
-            return float(total_sales - total_purchases)
+            return float(initial_cash +total_sales - total_purchases)
 
         return 0.0
 
@@ -501,7 +579,8 @@ def generate_financial_report(as_of_date: Union[str, datetime]) -> Dict:
 
     This includes:
     - Cash balance
-    - Inventory valuation
+    - Inventory valuation (using buy prices)
+    - Estimated inventory revenue (using sell prices)
     - Combined asset total
     - Itemized inventory breakdown
     - Top 5 best-selling products
@@ -513,7 +592,8 @@ def generate_financial_report(as_of_date: Union[str, datetime]) -> Dict:
         Dict: A dictionary containing the financial report fields:
             - 'as_of_date': The date of the report
             - 'cash_balance': Total cash available
-            - 'inventory_value': Total value of inventory
+            - 'inventory_value': Total value of inventory (at buy prices)
+            - 'estimated_inventory_revenue': Estimated revenue if all inventory sold (at sell prices)
             - 'total_assets': Combined cash and inventory value
             - 'inventory_summary': List of items with stock and valuation details
             - 'top_selling_products': List of top 5 products by revenue
@@ -528,20 +608,25 @@ def generate_financial_report(as_of_date: Union[str, datetime]) -> Dict:
     # Get current inventory snapshot
     inventory_df = pd.read_sql("SELECT * FROM inventory", db_engine)
     inventory_value = 0.0
+    estimated_inventory_revenue = 0.0
     inventory_summary = []
 
     # Compute total inventory value and summary by item
     for _, item in inventory_df.iterrows():
         stock_info = get_stock_level(item["item_name"], as_of_date)
         stock = stock_info["current_stock"].iloc[0]
-        item_value = stock * item["unit_price"]
+        item_value = stock * item["buy_unit_price"]
+        estimated_revenue = stock * item["sell_unit_price"]
         inventory_value += item_value
+        estimated_inventory_revenue += estimated_revenue
 
         inventory_summary.append({
             "item_name": item["item_name"],
             "stock": stock,
-            "unit_price": item["unit_price"],
+            "buy_unit_price": item["buy_unit_price"],
+            "sell_unit_price": item["sell_unit_price"],
             "value": item_value,
+            "estimated_revenue": estimated_revenue,
         })
 
     # Identify top-selling products by revenue
@@ -560,6 +645,7 @@ def generate_financial_report(as_of_date: Union[str, datetime]) -> Dict:
         "as_of_date": as_of_date,
         "cash_balance": cash,
         "inventory_value": inventory_value,
+        "estimated_inventory_revenue": estimated_inventory_revenue,
         "total_assets": cash + inventory_value,
         "inventory_summary": inventory_summary,
         "top_selling_products": top_selling_products,

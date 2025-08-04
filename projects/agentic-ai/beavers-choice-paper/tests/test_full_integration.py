@@ -180,8 +180,9 @@ def run_test_scenarios():
         report = generate_financial_report(request_date)
         current_cash = report["cash_balance"]
         current_inventory = report["inventory_value"]
+        overall_assets = current_cash + current_inventory
 
-        print(f"📊 Updated: Cash ${current_cash:.2f} | Inventory ${current_inventory:.2f}")
+        print(f"📊 Updated: Cash ${current_cash:.2f} | Inventory ${current_inventory:.2f} | Total Assets ${overall_assets:.2f}")
 
         # Store results
         results.append({

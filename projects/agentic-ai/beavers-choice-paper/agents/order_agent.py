@@ -30,7 +30,7 @@ def create_transaction_tool(data: List[TransactionData]) -> List[int]:
     Args:
         data (List[TransactionData]): A list of transaction records to create. Each must contain:
             - item_name (str): Name of the item involved
-            - transaction_type (str): 'stock_orders' or 'sales'
+            - transaction_type (str): 'sales'
             - quantity (int): Number of units involved
             - price (float): Total price for the transaction
             - date (str): Transaction date in ISO format (YYYY-MM-DD)
@@ -42,7 +42,7 @@ def create_transaction_tool(data: List[TransactionData]) -> List[int]:
     for record in data:
         inserted_id = create_transaction(
             item_name=record["item_name"],
-            transaction_type=record["transaction_type"],
+            transaction_type="sales",
             quantity=record["quantity"],
             price=record["price"],
             date=record["date"],
@@ -76,6 +76,8 @@ Your task:
       - price: the subtotal (or calculated price) for this line item
       - date: the quote_request_date (not today's date)
    b. Call create_transaction_tool with the list of transaction records
+
+DO NOT FORGET: to execute the created sales transactions using create_transaction_tool.
 
 3. Generate order summary:
    a. Create an order_id using format "ORD-{timestamp}" (use current timestamp)

@@ -34,7 +34,7 @@ request_quote = """I would like to request the following paper supplies for the 
 
 - 200 sheets of A4 glossy paper
 - 100 sheets of heavy cardstock (white)
-- 100 baloons
+- 100 balloons
 
 I need these supplies delivered by August 15, 2025. Thank you."""
 
@@ -45,7 +45,7 @@ quote_request_date = "2025-08-01"  # Example date, adjust as needed
 print(f"Quote Request Date: {quote_request_date}\n")
 
 # Create fresh parser agent instance
-parser_agent = QuoteRequestParserAgent()
+parser_agent = QuoteRequestParserAgent(verbosity_level=2)
 
 # Call the parser agent with the quote request and date
 result = parser_agent.run(

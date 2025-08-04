@@ -112,7 +112,10 @@ def test_reporting_agent():
         print(f"✅ Success: {result.success}")
         if result.success:
             print(f"📊 Report Data Keys: {list(result.report_data.keys())}")
-            print(f"📝 Summary: {result.summary}")
+            print(f"� Report Data Contents:")
+            for key, value in result.report_data.items():
+                print(f"  {key}: {value}")
+            print(f"�📝 Summary: {result.summary}")
         else:
             print(f"❌ Error: {result.error_message}")
     except Exception as e:
@@ -132,7 +135,10 @@ def test_reporting_agent():
         print(f"✅ Success: {result.success}")
         if result.success:
             print(f"📊 Report Data Keys: {list(result.report_data.keys())}")
-            print(f"📝 Summary: {result.summary}")
+            print(f"� Report Data Contents:")
+            for key, value in result.report_data.items():
+                print(f"  {key}: {value}")
+            print(f"�📝 Summary: {result.summary}")
         else:
             print(f"❌ Error: {result.error_message}")
     except Exception as e:
@@ -152,7 +158,10 @@ def test_reporting_agent():
         print(f"✅ Success: {result.success}")
         if result.success:
             print(f"📊 Report Data Keys: {list(result.report_data.keys())}")
-            print(f"📝 Summary: {result.summary}")
+            print(f"� Report Data Contents:")
+            for key, value in result.report_data.items():
+                print(f"  {key}: {value}")
+            print(f"�📝 Summary: {result.summary}")
         else:
             print(f"❌ Error: {result.error_message}")
     except Exception as e:
