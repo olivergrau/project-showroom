@@ -1,4 +1,4 @@
-This project was moved to a separate and professional "AI Template Kit for Recommendation Systems". 
+This project was replaced by a brand new, separated and professional "AI Template Kit for Recommendation Systems". 
 
 Find more on my webpage:
 
