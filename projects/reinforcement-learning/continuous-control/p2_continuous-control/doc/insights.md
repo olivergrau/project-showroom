@@ -1,7 +1,3 @@
-Absolutely! Let's take it step by step and go deeper into each concept, making sure you fully understand **why** we use the **reparameterization trick**, how it connects to **gradient flow**, and why **tanh squashing requires a correction**.
-
----
-
 ## **🔹 Step 1: Understanding the Reparameterization Trick**
 ### **Why do we need it?**
 In reinforcement learning (RL), we want to **learn a policy** \( \pi(a | s) \) that **maximizes rewards**. Since SAC uses a **stochastic policy**, it **samples actions** from a probability distribution:
