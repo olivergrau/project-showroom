@@ -72,7 +72,6 @@ if __name__ == "__main__":
     ENV_PATH     = "Reacher_Linux/Reacher.x86_64"
     WEIGHTS_PATH = "saved_weights/train_ddpg/ddpg_weights_ep_40_2025-05-03_21-00-17.pth"   # path to your saved weights dict
 
-    # This is insane! Outrageous! 100 episodes in a row? The folks at Udacity must be all masochist! 20 episodes is enough to get a good idea of the performance of my agent.
     N_EPISODES   = 100 
 
     scores = evaluate_ddpg(ENV_PATH, WEIGHTS_PATH, n_episodes=N_EPISODES, no_graphics=True)

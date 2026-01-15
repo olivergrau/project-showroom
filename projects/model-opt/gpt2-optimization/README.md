@@ -1,12 +1,12 @@
-# ✅ Project Instructions: GPT-2 Model Optimization & Deployment
+# Project Instructions: GPT-2 Model Optimization & Deployment
 
-## 🧠 Project Context
+## Project Context
 
 In this project, you will act as an ML Engineer responsible for optimizing a GPT-2 language model for efficient inference in a resource-constrained environment. You will apply techniques like attention head pruning, fine-tuning, INT8 post-training quantization, and performance analysis to create a lightweight version of GPT-2 that can run on a CPU with limited memory. This project mimics real-world tasks performed by AI/ML engineers at companies deploying large models on edge devices or cloud services.
 
 ---
 
-## 🗂️ Files & Setup
+## Files & Setup
 
 Work for this project is completed in the provided `project.ipynb` Jupyter notebook. The notebook includes all the code scaffolding, explanations, and clearly marked `TODO` sections where you will implement your logic.
 
@@ -14,17 +14,16 @@ Work for this project is completed in the provided `project.ipynb` Jupyter noteb
 - GPU: for pruning + fine-tuning (FP16)
 - CPU: for quantization + evaluation
 - Tokenizer and model: `gpt2`
-- Required packages: already pre-installed in your Udacity workspace
 
 ---
 
-## 🔧 Development Strategy
+## Development Strategy
 
 We recommend completing the project in four structured phases:
 
 ---
 
-### 📍 Part 1: Load and Profile the Base GPT-2 Model (FP16)
+### Part 1: Load and Profile the Base GPT-2 Model (FP16)
 
 - ✅ Load the `gpt2` model using Hugging Face.
 - ✅ Convert it to FP16.
@@ -35,7 +34,7 @@ We recommend completing the project in four structured phases:
 
 ---
 
-### 📍 Part 2: Prune Attention Heads
+### Part 2: Prune Attention Heads
 
 - ✅ Implement the `prune_attention_heads()` function.
 - ✅ Prune 20% of heads per transformer layer.
@@ -46,7 +45,7 @@ We recommend completing the project in four structured phases:
 
 ---
 
-### 📍 Part 3: Fine-tune the Pruned Model
+### Part 3: Fine-tune the Pruned Model
 
 - ✅ Use a small custom dataset (or a sample from Hugging Face).
 - ✅ Prepare your tokenizer with proper padding settings.
@@ -58,7 +57,7 @@ We recommend completing the project in four structured phases:
 
 ---
 
-### 📍 Part 4: Post-Training Quantization (INT8 CPU)
+### Part 4: Post-Training Quantization (INT8 CPU)
 
 - ✅ Use `INCQuantizer` to quantize the fine-tuned model.
 - ✅ Filter and tokenize the calibration dataset.
@@ -99,7 +98,7 @@ Bottom line: INT8 quantization here targets CPU efficiency and portability, not 
 
 ---
 
-## 📊 Visualizations & Flame Graphs
+## Visualizations & Flame Graphs
 
 - ✅ Use `matplotlib` to plot:
   - Latency per optimization stage
@@ -108,28 +107,6 @@ Bottom line: INT8 quantization here targets CPU efficiency and portability, not 
 - ✅ Export `torch.profiler` traces for flame graph inspection via TensorBoard.
 
 💡 These help you understand the tradeoffs between model size, speed, and quality.
-
----
-
-## ✅ Submission Checklist
-
-Before submitting, ensure you've completed the following:
-
-- [ ] Implemented all `TODO` sections in the notebook
-- [ ] Included charts comparing latency, perplexity, and memory
-- [ ] Saved the final notebook with outputs
-- [ ] Removed any personal API keys or credentials
-- [ ] Saved/exported profiling trace as JSON or viewable TensorBoard logs
-
----
-
-## 📤 Submission Instructions
-
-You can submit the project via:
-
-- The “Submit Project” button in the Udacity workspace  
-- As a zipped notebook (`project.ipynb`)  
-- Or as a GitHub repo link with all required files  
 
 ---
 

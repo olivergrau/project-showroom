@@ -1,0 +1,16 @@
+name: myenv-opt
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+
+  # PyTorch with CUDA, aligned with your previous project
+  - pytorch=2.9.*
+  - torchvision
+  - pytorch-cuda=12.1
+
+  - pip:
+      - -r requirements.txt

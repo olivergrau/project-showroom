@@ -1,0 +1,128 @@
+{
+  "mode": "tp",
+  "world_size": 2,
+  "tp_size": 2,
+  "dtype": "fp16",
+  "n_prompts": 25,
+  "total_time_s": 3.4148902893066406,
+  "mean_latency_s": 0.13659561157226563,
+  "total_gen_tokens_rank0": 344,
+  "throughput_tokens_per_s_rank0": 100.73530065583623,
+  "dump": {
+    "stats": {
+      "n_dumped": 5,
+      "dump_max_new_tokens": 16,
+      "gen_tokens_min": 8,
+      "gen_tokens_max": 16,
+      "gen_tokens_mean": 13.2
+    },
+    "items": [
+      {
+        "i": 0,
+        "prompt": "You are a news editor.\nWrite a single clear headline (max 12 words) for the article summary below.\nReturn only the headline text, with no quotes and no extra commentary.\n\nArticle summary:\nSynchronicity can be a scary, shocking and ominously timely thing.  Only days after Barack Obama apologizes for a drone killing hostages held by al Qaeda in Pakistan, George Brant's Grounded opens.\n\nHeadline:",
+        "input_len": 87,
+        "gen_token_ids": [
+          330,
+          31814,
+          291,
+          25,
+          362,
+          1561,
+          17042,
+          10180,
+          264,
+          74581,
+          45599,
+          596,
+          3959,
+          1189,
+          1139,
+          71428
+        ],
+        "gen_text": "You are a news editor.\nWrite a single clear headline (max 12 words) for the article summary below.\nReturn only the headline text, with no quotes and no extra commentary.\n\nArticle summary:\nSynchronicity can be a scary, shocking and ominously timely thing.  Only days after Barack Obama apologizes for a drone killing hostages held by al Qaeda in Pakistan, George Brant's Grounded opens.\n\nHeadline: \"Grounded: A New Film About a Drone Pilot's Descent into Madness"
+      },
+      {
+        "i": 1,
+        "prompt": "You are a news editor.\nWrite a single clear headline (max 12 words) for the article summary below.\nReturn only the headline text, with no quotes and no extra commentary.\n\nArticle summary:\nIf you're a moderate considering voting for Mitt Romney, there are certain facts you should know... according to Bill Maher\n\nHeadline:",
+        "input_len": 68,
+        "gen_token_ids": [
+          26386,
+          596,
+          37697,
+          2191,
+          3297,
+          2893,
+          264,
+          17559,
+          38829,
+          304,
+          5414,
+          26838,
+          25733,
+          13,
+          128009
+        ],
+        "gen_text": "You are a news editor.\nWrite a single clear headline (max 12 words) for the article summary below.\nReturn only the headline text, with no quotes and no extra commentary.\n\nArticle summary:\nIf you're a moderate considering voting for Mitt Romney, there are certain facts you should know... according to Bill Maher\n\nHeadline: Romney's Mormonism May Be a Major Factor in His Election Loss."
+      },
+      {
+        "i": 2,
+        "prompt": "You are a news editor.\nWrite a single clear headline (max 12 words) for the article summary below.\nReturn only the headline text, with no quotes and no extra commentary.\n\nArticle summary:\nYasmine Hamdan performs 'Hal,' which she also sings in the film during a scene when two world-weary vampires begin to heal, and find a way to continue living, as they remember the power and mystery of creation itself.\n\nHeadline:",
+        "input_len": 91,
+        "gen_token_ids": [
+          330,
+          53,
+          1141,
+          3946,
+          1050,
+          16381,
+          304,
+          364,
+          57041,
+          15260,
+          128009
+        ],
+        "gen_text": "You are a news editor.\nWrite a single clear headline (max 12 words) for the article summary below.\nReturn only the headline text, with no quotes and no extra commentary.\n\nArticle summary:\nYasmine Hamdan performs 'Hal,' which she also sings in the film during a scene when two world-weary vampires begin to heal, and find a way to continue living, as they remember the power and mystery of creation itself.\n\nHeadline: \"Vampires Reborn in 'Hal'\""
+      },
+      {
+        "i": 3,
+        "prompt": "You are a news editor.\nWrite a single clear headline (max 12 words) for the article summary below.\nReturn only the headline text, with no quotes and no extra commentary.\n\nArticle summary:\nFinally, Mike, McKayla Maroney’s father, offered advice to parents whose kids might aspire to go for gold some day too. \"Let\n\nHeadline:",
+        "input_len": 74,
+        "gen_token_ids": [
+          90970,
+          4355,
+          2947,
+          2596,
+          596,
+          20941,
+          52418,
+          55820,
+          311,
+          44026,
+          315,
+          13566,
+          20277,
+          14203,
+          13,
+          128009
+        ],
+        "gen_text": "You are a news editor.\nWrite a single clear headline (max 12 words) for the article summary below.\nReturn only the headline text, with no quotes and no extra commentary.\n\nArticle summary:\nFinally, Mike, McKayla Maroney’s father, offered advice to parents whose kids might aspire to go for gold some day too. \"Let\n\nHeadline: McKayla Maroney's Father Offers Advice to Parents of Young Athletes."
+      },
+      {
+        "i": 4,
+        "prompt": "You are a news editor.\nWrite a single clear headline (max 12 words) for the article summary below.\nReturn only the headline text, with no quotes and no extra commentary.\n\nArticle summary:\nThe main reason I resist it is that I reject the very premise of the holiday: choosing an arbitrary time for the compulsory enunciation and celebration of love. After all, do I love my spouse, my mother, and other family members any more on February 14 than I do the other days of the year?\n\nHeadline:",
+        "input_len": 107,
+        "gen_token_ids": [
+          330,
+          29351,
+          374,
+          2876,
+          264,
+          32769,
+          1,
+          128009
+        ],
+        "gen_text": "You are a news editor.\nWrite a single clear headline (max 12 words) for the article summary below.\nReturn only the headline text, with no quotes and no extra commentary.\n\nArticle summary:\nThe main reason I resist it is that I reject the very premise of the holiday: choosing an arbitrary time for the compulsory enunciation and celebration of love. After all, do I love my spouse, my mother, and other family members any more on February 14 than I do the other days of the year?\n\nHeadline: \"Love is Not a Holiday\""
+      }
+    ]
+  }
+}

@@ -193,6 +193,8 @@ projects/reinforcement-learning/collab-and-compet/Tennis_Linux/
 projects/reinforcement-learning/collab-and-compet/trial_configs/
 projects/reinforcement-learning/collab-and-compet/weights/
 projects/peft/lightweight-fine-tuning-modern/outputs_peft/
-projects/model-opt/uda-sense/data/
-projects/model-opt/uda-sense/models/
-projects/model-opt/uda-sense/results/
+projects/model-opt/udasense/data/
+projects/model-opt/udasense/models/
+projects/model-opt/udasense/results/
+projects/model-opt/udasense/runs/
+projects/model-opt/EfficMed/results/

@@ -18,7 +18,6 @@ The environment is “solved” when the **mean** of those episode scores, taken
 ## Environment
 
 - **Version**: Twenty (20) Agents  
-- **Linux build**: [Reacher_Linux.zip](https://s3-us-west-1.amazonaws.com/udacity-drlnd/P2/Reacher/Reacher_Linux.zip)  
 
 Unzip into `p2_continuous-control/` so that your directory looks like:
 ```

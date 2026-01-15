@@ -1,0 +1,7 @@
+{
+  "dtype": "fp16",
+  "pipeline_parallel": {
+    "pp_size": 2,
+    "partition": "uniform"
+  }
+}
